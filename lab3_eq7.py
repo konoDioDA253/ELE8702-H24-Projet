@@ -1,9 +1,7 @@
-## Numéro d'équipe : 79
+## Numéro d'équipe : 7
 ## Bouh Abdillahi (Matricule : 1940646)
 ## Vincent Yves Nodjom (Matricule : 1944011)
-## Equipier MATRICULE
-## Equipier MATRICULE
-## Équipe : 79
+## Équipe : 7
 ## Github link : https://github.com/konoDioDA253/ELE8702-H24-Lab3
 import sys
 import math
@@ -14,19 +12,20 @@ import argparse
 import subprocess
 import matplotlib.pyplot as plt
 import numpy as np
-from pathloss_3gpp_eq79 import *
+from pathloss_3gpp_eq7 import *
 
 # Variables GLOBAL
 infini = float('inf') #définition de l'infini
 # Numero propres a l'équipe
-numero_equipe = '79'
+numero_equipe = '7'
+numero_lab = '3'
 # Nom des fichiers a ecrire dont le nom est absent du fichier de cas
-pathloss_file_name = "ts_eq"+numero_equipe+"_pl.txt"
-assoc_ues_file_name = "ts_eq"+numero_equipe+"_assoc_ue.txt"
-assoc_antennas_file_name = "ts_eq"+numero_equipe+"_assoc_ant.txt"
-transmission_ant_file_name = "ts_eq"+numero_equipe+"_transmission_ant.txt"
-transmission_ue_file_name = "ts_eq"+numero_equipe+"_transmission_ue.txt"
-pdf_graph_file_name = "ts"+numero_lab+"_eq"+numero_equipe+"_graphiques.pdf"
+pathloss_file_name = "lab"+numero_lab+"_eq"+numero_equipe+"_pl.txt"
+assoc_ues_file_name = "lab"+numero_lab+"_eq"+numero_equipe+"_assoc_ue.txt"
+assoc_antennas_file_name = "lab"+numero_lab+"_eq"+numero_equipe+"_assoc_ant.txt"
+transmission_ant_file_name = "lab"+numero_lab+"_eq"+numero_equipe+"_transmission_ant.txt"
+transmission_ue_file_name = "lab"+numero_lab+"_eq"+numero_equipe+"_transmission_ue.txt"
+pdf_graph_file_name = "lab"+numero_lab+"_eq"+numero_equipe+"_graphiques.pdf"
 # Structure attendue du fichier de cas
 yaml_structure_message = """
 ETUDE_PATHLOSS :
@@ -55,7 +54,7 @@ ETUDE_PATHLOSS :
       tstart : (temps initial)
       tfinal : (temps final) #ms 
       dt : (pas de temps)      #ms 
-      read : [ts_eq7_segments.txt]
+      read : [lab3_eq7_segments.txt]
 """
 
 # Germe de toutes les fonctions aléatoires
@@ -76,11 +75,10 @@ class Antenna:
         # Attributs rajoutes par notre equipe
         self.type = None      # Type de l'antenne
         self.name = None      # Nom de l'Antenne
-        self.resource_blocks = [] # Nombre de resource blocks disponibles par dt
         self.gain = None      # Gain de l'antenne
         self.nbits = []       # Nombre de bits recus a chaque dt
         self.live_ues = []    # Regroupement des ID des ues qui auront transmis a chaque dt
-
+    
 # Cette classe est utilise pour repertorier les caracteristiques d'une UE 
 class UE:
 
@@ -96,18 +94,10 @@ class UE:
         # Attributs rajoutes par notre equipe
         self.type = None      # Type de l'UE
         self.name = None      # Nom de l'UE
-        self.FR_type = None   # Spécifie si l'UE aura une communication FR1 ou FR2 avec son antenne associee
-        self.cqi = None       # CQI de l'UE avec son antenne
-        self.efficiency = None # Efficacité de la transmission avec l'antenne (obtenue a partir du CQI)
+        self.TX_rate = None   # Debit de l'application de l'UE
         self.nbits = []       # Nombre de bits envoyes a chaque dt
         self.start_TX = []    # Liste des temps de debuts de transmission de paquets
         self.end_TX = []      # Liste des temps de fins de transmission de paquets
-        self.TX_bits = None   # Longueur de paquet de l'application de l'UE
-        self.TX_law = None   # Loi de probabilite suivi par la longueur de paquets de l'application de l'UE
-        self.TX_percent = None   # Precision de la longueur du paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
-        self.delay_xpacket = None   # Temps d'arrivee inter-paquet de l'application de l'UE
-        self.delay_law = None   # Loi de probabilite suivie par le temps d'arrivee inter-paquet de l'application de l'UE
-        self.delay_percent = None   # Precision du temps d'arrivee inter-paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
 
 # Cette classe est utilise pour repertorier tous les pathloss calculer avec les antenne et les ues utilisés
 class Pathloss:
@@ -117,7 +107,6 @@ class Pathloss:
         self.id_ant = id_ant # ID de l'antenne
         self.los = None # LoS ou non (bool)
         self.value = None   # Valeur du pathloss
-        slef.cqi = None     # Valeur du CQI
 
 # Fonction permettant d'afficher un message d'erreur et de stopper le programme
 # Nbre de param : 2 (msg = message , code = code d'erreur)
@@ -793,7 +782,7 @@ def verifie_presence_visibility_los(ue, antenne, fichier_de_cas, ues, antennas):
                 return False
     return True
 
-# ****************************AJOUTER CQI**********************************
+# ****************************CHANGER POUR 3GPP**********************************
 # Fonction permettant d'assigner un pathloss à chaque combinaison (antenne,UE) du terrain
 # Nbre param: 4 (fichier_de_cas, fichier_de_device, antennas = liste des antenne, ues =liste des ues)
 # Valeur de retour: pathloss_list = liste des pathloss calculer, warning_log = message d'avertissement 
@@ -820,8 +809,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                     if pathloss.los == False :
                         pathloss_value, warning_message = rma_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
-                    # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
             return pathloss_list, warning_log
@@ -835,8 +822,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                     if pathloss.los == False :
                         pathloss_value, warning_message = uma_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
-                    # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-                    
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
             return pathloss_list, warning_log
@@ -850,8 +835,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                     if pathloss.los == False :
                         pathloss_value, warning_message = umi_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
-                    # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-                    
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
             return pathloss_list, warning_log
@@ -869,8 +852,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                 pathloss.los = verifie_presence_visibility_los(ue.id, antenna.id, fichier_de_cas, ues, antennas)
                 pathloss_value, warning_message = okumura(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                 pathloss.value = pathloss_value
-                # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-
                 warning_log += warning_message
                 pathloss_list.append(pathloss)
         return pathloss_list, warning_log
@@ -898,7 +879,6 @@ def association_ue_antenne(pathlosses, antennas, ues):
 
         # Si l'UE n'est pas dans le dictionnaire ou que la valeur du pathloss est plus petite que le minimum courant,
         # Mettre a jour l'entree du dictionnaire
-        # TODO : Aller chercher la valeur du CQI en plus du pathloss
         if ue_id not in ue_to_antenna or pathloss_value < ue_to_antenna[ue_id][1]:
             ue_to_antenna[ue_id] = (ant_id, pathloss_value, pathloss_los)
 
@@ -908,7 +888,6 @@ def association_ue_antenne(pathlosses, antennas, ues):
         if ue:
             ue.assoc_ant = ant_id
             ue.los = pathloss_los
-            # TODO : Associer la valeur du CQI en plus du pathloss
         
 
     # Mettre a jour l'attribut assoc_ue de l'antenne correspondante
@@ -1573,6 +1552,10 @@ def main(arg):
     write_assoc_ant_to_file(ues)
     write_transmission_ant_to_file(antennas, fichier_de_cas)
     write_transmission_ue_to_file(ues, fichier_de_cas)
+    # plot_equipment_positions(antennas, ues, "plot_disposition_equipement")
+    # plot_average_traffic_ues("average_traffic_ues", ues)
+    # plot_average_traffic_antennas("average_traffic_antennas", antennas)
+    # plot_bits_received_per_slot(antennas, ues, fichier_de_cas, "average_traffic_per_slot")
     input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues"]
     create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
 
