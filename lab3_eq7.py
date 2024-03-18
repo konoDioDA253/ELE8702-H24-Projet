@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathloss_3gpp_eq7 import *
 
+#blablabla
 # Variables GLOBAL
 infini = float('inf') #définition de l'infini
 # Numero propres a l'équipe
