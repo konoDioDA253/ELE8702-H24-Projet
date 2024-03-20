@@ -5,6 +5,7 @@
 ## Equipier MATRICULE
 ## Équipe : 79
 ## Github link : https://github.com/konoDioDA253/ELE8702-H24-Lab3
+# TEST TEST
 import sys
 import math
 import yaml
@@ -15,7 +16,7 @@ import subprocess
 import matplotlib.pyplot as plt
 import numpy as np
 from pathloss_3gpp_eq79 import *
-
+#TEST COMMENT
 # Variables GLOBAL
 infini = float('inf') #définition de l'infini
 # Numero propres a l'équipe
