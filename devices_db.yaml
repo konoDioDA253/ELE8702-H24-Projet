@@ -13,6 +13,8 @@ ANTENNAS:
     height: 10
     frequency:  28 #GHz
     gain:  40
+    scs: 60 #sub-carrier spacing in kHz
+    bandwidth: 80 #antenna bandwith in MHz
 #
   Antenna2:
     type: antenna
@@ -20,6 +22,8 @@ ANTENNAS:
     height: 35
     frequency:  0.9 #GHz
     gain:  45
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
 #
   Antenna3:
     type: antenna
@@ -27,6 +31,8 @@ ANTENNAS:
     height: 10
     frequency:  28 #GHz
     gain:  40
+    scs: 60 #sub-carrier spacing in kHz
+    bandwidth: 80 #antenna bandwith in MHz
 #
   Antenna4:
     type: antenna
@@ -34,6 +40,8 @@ ANTENNAS:
     height: 35
     frequency:  0.9 #GHz
     gain:  45
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
  #
   Antenna5:
     type: antenna
@@ -41,6 +49,8 @@ ANTENNAS:
     height: 37
     frequency:  0.250 #GHz
     gain:  30 
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
         
 #
   Antenna6:
@@ -49,6 +59,8 @@ ANTENNAS:
     height: 20
     frequency:  1.4 #GHz
     gain:  30 
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
         
 #
   Antenna7:
@@ -57,6 +69,8 @@ ANTENNAS:
     height: 30
     frequency:  3.2 #GHz
     gain:  35 
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
 
 # Attribute R is now the packet length instead of the bit rate (compared to past labs)    
 UES:
@@ -65,7 +79,7 @@ UES:
     name: UE-type1
     app: Streaming-4K
     height:  1.5
-    R : 400000 #packet length in bits
+    R : 400000 #standard packet length in bits
     R_law : uniform #probability law followed by the packet-length
     R_percent : 0.2 #percentage of accuracy
     delay_xpacket: 200 #in ms, represents the inter-packet delay
@@ -77,7 +91,7 @@ UES:
     name: UE-type2
     app: Controle-Drone
     height:  1.5
-    R : 100 #packet length in bits
+    R : 100 #standard packet length in bits
     R_law : uniform #probability law followed by the packet-length
     R_percent : 0.05 #percentage of accuracy of the uniform law
     delay_xpacket: 35 #in ms, represents the inter-packet delay
@@ -90,7 +104,7 @@ UES:
     name: UE-type3
     app: Detection-Automobile
     height:  1.5
-    R : 100 #packet length in bits
+    R : 100 #standard packet length in bits
     R_law : uniform #probability law followed by the packet-length
     R_percent : 0.05 #percentage of accuracy of the uniform law
     delay_xpacket: 1000 #in ms, represents the inter-packet delay
