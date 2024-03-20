@@ -77,11 +77,11 @@ class Antenna:
         # Attributs rajoutes par notre equipe
         self.type = None      # Type de l'antenne
         self.name = None      # Nom de l'Antenne
-        self.nombre_resource_blocks_max = None      # Nombre de resource blocks maximal theorique (calculer avec SCS et BW)
-        self.nombre_resource_blocks_disponibles = [] # Liste du Nombre de resource blocks disponibles a chaque slot de temps dt
         self.gain = None      # Gain de l'antenne
         self.nbits = []       # Liste des Nombres de bits recus a chaque slot de temps dt
         self.live_ues = []    # Regroupement des ID des ues qui auront transmis a chaque dt
+        self.nombre_resource_blocks_max = None      # Nombre de resource blocks maximal theorique (calculer avec SCS et BW)
+        self.nombre_resource_blocks_disponibles = [] # !! Liste du Nombre de resource blocks disponibles a chaque slot de temps dt
         self.FR_type = None   # Spécifie si l'UE aura une communication FR1 ou FR2 avec son antenne associee
         self.bandwidth = None # Spécifie la largeur de bande de l'antenne
         self.sub_carrier_spacing = None       # Espacement entre sous-porteuse que l'antenne supporte
@@ -101,15 +101,15 @@ class UE:
         # Attributs rajoutes par notre equipe
         self.type = None      # Type de l'UE
         self.name = None      # Nom de l'UE
+        self.nbits = []       # Nombre de bits envoyes a chaque slot de temps dt
+        self.start_TX = []    # !! Liste des temps de debuts de transmission de paquets
+        self.end_TX = []      # !! Liste des temps de fins de transmission de paquets
         self.cqi = None       # CQI de l'UE avec son antenne
         self.efficiency = None # Efficacité de la transmission avec l'antenne (obtenue a partir du CQI)
-        self.nbits = []       # Nombre de bits envoyes a chaque slot de temps dt
-        self.start_TX = []    # Liste des temps de debuts de transmission de paquets
-        self.end_TX = []      # Liste des temps de fins de transmission de paquets
-        self.TX_bits = []   # Liste des longueurs de paquet envoyés à chaque transmission de l'application de l'UE
+        self.TX_bits = []   # !! Liste des longueurs de paquet envoyés à chaque transmission de l'application de l'UE
         self.TX_law = None   # Loi de probabilite suivi par la longueur de paquets de l'application de l'UE
         self.TX_percent = None   # Precision de la longueur du paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
-        self.delay_xpacket = []   # Liste des temps d'envoi inter-paquet de l'application de l'UE (Liste specifiant le temps écoulé entre le début de l'envoi de deux paquets)
+        self.delay_xpacket = []   # !! Liste des temps d'envoi inter-paquet de l'application de l'UE (Liste specifiant le temps écoulé entre le début de l'envoi de deux paquets)
         self.delay_law = None   # Loi de probabilite suivie par le temps d'arrivee inter-paquet de l'application de l'UE
         self.delay_percent = None   # Precision du temps d'arrivee inter-paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
         self.queue = []        # Liste contenant la quantité de bits non envoyés par manque de Resource Block disponibles du coté de l'antenne associée a chaque slot de temps dt 
@@ -126,11 +126,11 @@ class Pathloss:
 
 
 
-# # Cette classe est utilisee pour indiquer les paquets à ré-envoyer lors d'un nouveau slot de temps dt (moment de réallouer les ressources, si nous en avons assez)
-# class Scheduler:
-#      def __init__(self):
-#         self.packet_list = []   # Liste des paquets à envoyer
-#         self.time_added = []        # Temps correspondant au temps initial d'arrivé du paquet dans le scheduler
+# Cette classe est utilisee pour indiquer les paquets à ré-envoyer lors d'un nouveau slot de temps dt (moment de réallouer les ressources, si nous en avons assez)
+class Scheduler:
+     def __init__(self):
+        self.packet_list = []   # Liste des paquets à envoyer
+        self.time_added = []        # Temps correspondant au temps initial d'arrivé du paquet dans le scheduler
 
 # Cette classe est utilisee pour stocker le paquet non transmis
 class Packet:

@@ -110,3 +110,5 @@ UES:
     delay_xpacket: 1000 #in ms, represents the inter-packet delay
     delay_law: uniform #probability law followed by the inter-packet delay
     delay_percent: 0.3 #percentage of accuracy of the uniform law
+
+200+200*percent*rand.unifrom(-1,1)
