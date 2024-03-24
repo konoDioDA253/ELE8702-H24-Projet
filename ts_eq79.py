@@ -260,6 +260,29 @@ def get_from_dict(key, data, res=None, curr_level = 1, min_level = 1):
                 res = get_from_dict(key, v, res, level, min_level)
     return res 
 
+# Fonction pour créer un tableau de valeurs
+# Arguments : colonnes, lignes, valeurs_a_attribuer
+# Valeur de retour : tableau etant une liste de liste
+def creer_tableau(colonnes, lignes, valeurs_a_attribuer):
+    tableau = {colonne: {ligne: None for ligne in lignes} for colonne in colonnes}
+    for colonne, ligne, valeur in valeurs_a_attribuer:
+        tableau[colonne][ligne] = valeur
+    return tableau
+
+def definition_des_tableaux():
+    # NRB tableau 
+    scs_valeurs = [15, 30, 60] #in kHz
+    bandwidth_valeurs = list(range(5, 51, 5)) + list(range(60, 101, 10)) #in MHz
+
+    valeurs_a_attribuer = [
+    (15, 5, 25), (15, 10, 52), (15, 15, 79), (15, 20, 106), (15, 25, 133), (15, 30, 160), (15, 35, 188), (15, 40, 216), (15, 45, 242), (15, 50, 270), (15, 60, None), (15, 70, None), (15, 80, None), (15, 90, None), (15, 100, None), 
+    (30, 5, 11), (30, 10, 24), (30, 15, 38), (30, 20, 51), (30, 25, 65), (30, 30, 78), (30, 35, 92), (30, 40, 106), (30, 45, 119), (30, 50, 133), (30, 60, 162), (30, 70, 189), (30, 80, 217), (30, 90, 245), (30, 100, 273), 
+    (60, 5, None), (60, 10, 11), (60, 15, 18), (60, 20, 24), (60, 25, 31), (60, 30,38), (60, 35, 44), (60, 40, 51), (60, 45, 58), (60, 50, 65), (60, 60, 79), (60, 70, 93), (60, 80, 107), (60, 90, 121), (60, 100, 135) 
+    ]
+    tableau_NRB = creer_tableau(scs_valeurs, bandwidth_valeurs, valeurs_a_attribuer)
+
+    return tableau_NRB
+
 # Fonction permettant de lire un fichier YAML 
 # Argument : fname (nom du fichier YAML a lire)
 # Valeur de retour : dictionnaire du contenu du fichier yaml
@@ -1083,7 +1106,12 @@ def sanity_check_timing_values(temps_initial, temps_final, pas_temps):
         ERROR("dt MUST be a positive value.")
 
 
-
+def get_slot_duration(antennas) :
+    scs = antennas[0].scs
+    pas_temps = {15: 1, 30: 0.5, 60: 0.25, 120: 0.125}.get(scs, None)
+    if pas_temps == None :
+        ERROR("Espacement entre sous-porteuse incorrect dans le fichier de devices database, veuillez mettre l'une de ces valeurs pour les antennes : 15, 30, 60, 120")
+    return pas_temps
 
 # Fonction permettant de faire la simulation de la transmission a chaque dt et retournant une liste d'objets Antenna et une liste d'objets UE avec les attributs nbits et live_ues mis a jour
 # Arguments : fichier_de_cas, fichier_de_device, antennas (liste d'objets Antenna), ues (liste d'objets UE)
@@ -1092,7 +1120,7 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
 
     temps_initial = get_from_dict('tstart',fichier_de_cas) # temps de debut de simulation
     temps_final = get_from_dict('tfinal',fichier_de_cas) # temps de fin de simulation
-    pas_temps = get_from_dict('dt',fichier_de_cas) # pas de temps dt
+    pas_temps = get_slot_duration(antennas) # pas de temps dt
     segment_filename = get_from_dict('read', get_from_dict('CLOCK', fichier_de_cas)) # Nom du fichier de segment
     sanity_check_timing_values(temps_initial, temps_final, pas_temps)
 
@@ -1100,7 +1128,6 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
     sanity_check_transmission_profile(fichier_de_cas)
     ues = lire_fichier_segments(segment_filename, ues)
 
-    # Lire l
 
     # Boucle de simulation
     temps_courant = temps_initial
@@ -1570,6 +1597,7 @@ def main(arg):
         ERROR(f"""The YAML case file does not have the correct structure. \n \nHere is an idea of the awaited structure : \n {yaml_structure_message} """)
 
     # Debut du programme :
+    definition_des_tableaux()
     device_file_name = "devices_db.yaml"
     data_case = read_yaml_file(case_file_name)
     data_device = read_yaml_file(device_file_name)
