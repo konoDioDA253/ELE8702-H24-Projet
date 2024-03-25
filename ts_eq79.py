@@ -7,6 +7,7 @@
 ## Github link : https://github.com/konoDioDA253/ELE8702-H24-Lab3
 # TEST TEST
 import sys
+import threading
 import math
 import yaml
 import random
@@ -27,7 +28,7 @@ assoc_ues_file_name = "ts_eq"+numero_equipe+"_assoc_ue.txt"
 assoc_antennas_file_name = "ts_eq"+numero_equipe+"_assoc_ant.txt"
 transmission_ant_file_name = "ts_eq"+numero_equipe+"_transmission_ant.txt"
 transmission_ue_file_name = "ts_eq"+numero_equipe+"_transmission_ue.txt"
-pdf_graph_file_name = "ts"+numero_lab+"_eq"+numero_equipe+"_graphiques.pdf"
+pdf_graph_file_name = "ts_eq"+numero_equipe+"_graphiques.pdf"
 # Structure attendue du fichier de cas
 yaml_structure_message = """
 ETUDE_PATHLOSS :
@@ -269,6 +270,7 @@ def creer_tableau(colonnes, lignes, valeurs_a_attribuer):
         tableau[colonne][ligne] = valeur
     return tableau
 
+# Definition des tableaux en tant que VARIABLES GLOBALES
 def definition_des_tableaux():
     # NRB tableau 
     scs_valeurs = [15, 30, 60] #in kHz
@@ -282,6 +284,7 @@ def definition_des_tableaux():
     tableau_NRB = creer_tableau(scs_valeurs, bandwidth_valeurs, valeurs_a_attribuer)
 
     return tableau_NRB
+tableau_NRB = definition_des_tableaux()
 
 # Fonction permettant de lire un fichier YAML 
 # Argument : fname (nom du fichier YAML a lire)
@@ -429,7 +432,12 @@ def lire_coordonnees_ues(filename, fichier_de_devices):
                 ue.name = get_from_dict('name', get_from_dict(group_ue,fichier_de_devices))
                 ue.height = get_from_dict('height', get_from_dict(group_ue,fichier_de_devices))
                 ue.type = get_from_dict('type', get_from_dict(group_ue,fichier_de_devices))
-                ue.TX_rate = get_from_dict('R', get_from_dict(group_ue,fichier_de_devices))
+                ue.TX_law = get_from_dict('R_law', get_from_dict(group_ue,fichier_de_devices))
+                ue.TX_percent = get_from_dict('R_percent', get_from_dict(group_ue,fichier_de_devices))
+                ue.delay_law = get_from_dict('delay_law', get_from_dict(group_ue,fichier_de_devices))
+                ue.delay_percent = get_from_dict('delay_percent', get_from_dict(group_ue,fichier_de_devices))
+                # TODO generate list of transmission times delay_xpacket and list of packet lenght TX_bits
+                # TODO generate start_TX and end_TX
                 liste_ues_avec_coordonnees.append(ue)
 
     return liste_ues_avec_coordonnees
@@ -468,6 +476,10 @@ def lire_coordonnees_antennes(filename, fichier_de_devices):
                 antenna.height = get_from_dict('height', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
                 antenna.type = get_from_dict('type', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
                 antenna.gain = get_from_dict('gain', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
+                antenna.sub_carrier_spacing = get_from_dict('scs', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
+                antenna.bandwidth = get_from_dict('bandwidth', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
+                antenna.nombre_resource_blocks_max = tableau_NRB[antenna.sub_carrier_spacing][antenna.bandwidth]
+                
                 liste_antennes_avec_coordonnees.append(antenna)
 
     return liste_antennes_avec_coordonnees
@@ -852,7 +864,7 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
     # Convertir en minuscules pour supporter les combinaisons de majuscules et minuscules
     model = model.lower()
     scenario = scenario.lower()
-
+    count=0
     if model == "3gpp" :
         if scenario == "rma" :
             for ue in ues:
@@ -872,6 +884,7 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
         if scenario == "uma" :
             for ue in ues:
                 for antenna in antennas:
+                    count+=1
                     pathloss = Pathloss(ue.id, antenna.id)
                     pathloss.los = verifie_presence_visibility_los(ue.id, antenna.id, fichier_de_cas, ues, antennas)
                     if pathloss.los == True :
@@ -1107,8 +1120,8 @@ def sanity_check_timing_values(temps_initial, temps_final, pas_temps):
 
 
 def get_slot_duration(antennas) :
-    scs = antennas[0].scs
-    pas_temps = {15: 1, 30: 0.5, 60: 0.25, 120: 0.125}.get(scs, None)
+    scs = antennas[0].sub_carrier_spacing
+    pas_temps = {15: 1.0, 30: 0.5, 60: 0.25, 120: 0.125}.get(scs, None)
     if pas_temps == None :
         ERROR("Espacement entre sous-porteuse incorrect dans le fichier de devices database, veuillez mettre l'une de ces valeurs pour les antennes : 15, 30, 60, 120")
     return pas_temps
@@ -1121,78 +1134,78 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
     temps_initial = get_from_dict('tstart',fichier_de_cas) # temps de debut de simulation
     temps_final = get_from_dict('tfinal',fichier_de_cas) # temps de fin de simulation
     pas_temps = get_slot_duration(antennas) # pas de temps dt
-    segment_filename = get_from_dict('read', get_from_dict('CLOCK', fichier_de_cas)) # Nom du fichier de segment
+    # segment_filename = get_from_dict('read', get_from_dict('CLOCK', fichier_de_cas)) # Nom du fichier de segment
     sanity_check_timing_values(temps_initial, temps_final, pas_temps)
 
     # Lire le fichier de segments et en extraire les informations de transmission des UEs
-    sanity_check_transmission_profile(fichier_de_cas)
-    ues = lire_fichier_segments(segment_filename, ues)
+    # sanity_check_transmission_profile(fichier_de_cas)
+    # ues = lire_fichier_segments(segment_filename, ues)
 
 
-    # Boucle de simulation
-    temps_courant = temps_initial
-    while temps_courant < 0.99*(temps_final-(temps_final-pas_temps*int((temps_final - temps_initial) / pas_temps))) + temps_initial : # tant que le temps courant est inferieur au temps de fin de simulation
-        # Logique de simulation de transmission de paquets entre antennes et UEs
-        # Pour chaque UE
-        for ue in ues:
-            # Verifier si l'UE a des transmissions prevues pendant ce pas de temps
-            # if ue.id == 2 :
-            #     print("EH!")
-            for i in range(len(ue.start_TX)):
-                if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
-                    M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
-                    R = ue.TX_rate*1000  # Débit de la transmission en bits per second
-                    nbits_transmis = int(R * M)  # Nombre de bits transmis
-                    # Mettre a jour l'attribut nbits de l'UE 
-                    # if len(ue.nbits) >= (temps_courant + pas_temps) :
-                    #     ue.nbits[int(temps_courant / pas_temps)] += nbits_transmis 
-                    # else:
-                    #     ue.nbits.append(nbits_transmis)
+    # # Boucle de simulation
+    # temps_courant = temps_initial
+    # while temps_courant < 0.99*(temps_final-(temps_final-pas_temps*int((temps_final - temps_initial) / pas_temps))) + temps_initial : # tant que le temps courant est inferieur au temps de fin de simulation
+    #     # Logique de simulation de transmission de paquets entre antennes et UEs
+    #     # Pour chaque UE
+    #     for ue in ues:
+    #         # Verifier si l'UE a des transmissions prevues pendant ce pas de temps
+    #         # if ue.id == 2 :
+    #         #     print("EH!")
+    #         for i in range(len(ue.start_TX)):
+    #             if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
+    #                 M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
+    #                 R = ue.TX_rate*1000  # Débit de la transmission en bits per second
+    #                 nbits_transmis = int(R * M)  # Nombre de bits transmis
+    #                 # Mettre a jour l'attribut nbits de l'UE 
+    #                 # if len(ue.nbits) >= (temps_courant + pas_temps) :
+    #                 #     ue.nbits[int(temps_courant / pas_temps)] += nbits_transmis 
+    #                 # else:
+    #                 #     ue.nbits.append(nbits_transmis)
 
-                    if ue.nbits == [] :
-                        # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
-                        while len(ue.nbits) < int((temps_final - temps_initial) / pas_temps) :
-                            ue.nbits.append(0)
-                    ue.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
+    #                 if ue.nbits == [] :
+    #                     # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
+    #                     while len(ue.nbits) < int((temps_final - temps_initial) / pas_temps) :
+    #                         ue.nbits.append(0)
+    #                 ue.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
                     
-                    # Mettre à jour les donnees de l'antenne associee
-                    antenne_associee_id = ue.assoc_ant
-                    for antenne in antennas:
-                        if antenne.id == antenne_associee_id:
-                            # if len(antenne.nbits) >= (temps_courant + pas_temps):
-                            #     # while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
-                            #     #     # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
-                            #     #     antenne.nbits.append(0)
-                            #     # Mettre à jour l'attribut nbits de l'antenne
-                            #     antenne.nbits[int(temps_courant / pas_temps)]  += nbits_transmis
-                            # else :
-                            #     antenne.nbits.append(nbits_transmis)
+    #                 # Mettre à jour les donnees de l'antenne associee
+    #                 antenne_associee_id = ue.assoc_ant
+    #                 for antenne in antennas:
+    #                     if antenne.id == antenne_associee_id:
+    #                         # if len(antenne.nbits) >= (temps_courant + pas_temps):
+    #                         #     # while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
+    #                         #     #     # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
+    #                         #     #     antenne.nbits.append(0)
+    #                         #     # Mettre à jour l'attribut nbits de l'antenne
+    #                         #     antenne.nbits[int(temps_courant / pas_temps)]  += nbits_transmis
+    #                         # else :
+    #                         #     antenne.nbits.append(nbits_transmis)
                             
-                            if antenne.nbits == [] :
-                                # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
-                                while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
-                                    antenne.nbits.append(0)
-                            antenne.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
+    #                         if antenne.nbits == [] :
+    #                             # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
+    #                             while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
+    #                                 antenne.nbits.append(0)
+    #                         antenne.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
                             
-                            # Ajouter l'UE à la liste des UEs actives de l'antenne si pas deja ajoute 
-                            if antenne.live_ues == [] :
-                                while len(antenne.live_ues) < int((temps_final - temps_initial) / pas_temps) :
-                                    antenne.live_ues.append([])
-                            if ue.id not in antenne.live_ues[int(temps_courant / pas_temps) - int(round(temps_initial / pas_temps))]:
-                                antenne.live_ues[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))].append(ue.id)                            
-                            break
+    #                         # Ajouter l'UE à la liste des UEs actives de l'antenne si pas deja ajoute 
+    #                         if antenne.live_ues == [] :
+    #                             while len(antenne.live_ues) < int((temps_final - temps_initial) / pas_temps) :
+    #                                 antenne.live_ues.append([])
+    #                         if ue.id not in antenne.live_ues[int(temps_courant / pas_temps) - int(round(temps_initial / pas_temps))]:
+    #                             antenne.live_ues[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))].append(ue.id)                            
+    #                         break
 
         
-        # Mise à jour du temps
-        temps_courant += pas_temps
+    #     # Mise à jour du temps
+    #     temps_courant += pas_temps
 
     
     return antennas, ues
 
 
-# Fonction lab3 requise, retourne une liste d'antenne et une liste d'UE
+# Fonction ts requise, retourne une liste d'antenne et une liste d'UE
 # Prends en parametre data_case qui est le dictionnaire du fichier de cas
-def lab3 (data_case):
+def ts (data_case):
     #TODO ....
     # antennas est une liste qui contient les objets de type Antenna
     # ues est une liste qui contient les objets de type UE
@@ -1605,7 +1618,7 @@ def main(arg):
     fichier_de_cas = data_case
     sanity_check_dimensions(fichier_de_cas)
     fichier_de_device = data_device
-    antennas, ues = lab3(fichier_de_cas)
+    antennas, ues = ts(fichier_de_cas)
 
     # Calcul pathloss et Association
     pathlosses, warning_log = pathloss_attribution(fichier_de_cas,fichier_de_device,antennas,ues)
@@ -1620,10 +1633,11 @@ def main(arg):
     write_pathloss_to_file(pathlosses, fichier_de_cas)
     write_assoc_ues_to_file(antennas)
     write_assoc_ant_to_file(ues)
-    write_transmission_ant_to_file(antennas, fichier_de_cas)
-    write_transmission_ue_to_file(ues, fichier_de_cas)
-    input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues"]
-    create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
+    # write_transmission_ant_to_file(antennas, fichier_de_cas)
+    # write_transmission_ue_to_file(ues, fichier_de_cas)
+    # input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues"]
+    # create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
+    # # pass
 
 if __name__ == '__main__':
     # sys.argv est une liste qui contient les arguments utilisés lors de l'appel 
@@ -1631,3 +1645,18 @@ if __name__ == '__main__':
     # juste inscrire l'argument tel que montré ci-dessous.
     main(sys.argv[1:])
 
+    # # Extract command-line arguments
+    # arg = sys.argv[1:]
+
+    # # Create and start threads
+    # threads = []
+    # for _ in range(1):  # Change 5 to the desired number of threads
+    #     t = threading.Thread(target=main, args=(arg,))
+    #     threads.append(t)
+    #     t.start()
+
+    # # Wait for all threads to complete
+    # for t in threads:
+    #     t.join()
+
+    # print("All threads have finished execution")

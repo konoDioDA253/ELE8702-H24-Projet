@@ -37,7 +37,6 @@ ETUDE_DE_TRANSMISSION:
       read : ts_eq79_segments.txt
       #write: time_segments_lab3.txt
    5G_PARAM:
-      sub_carrier_spacing: 15 #kHz, can be 15/30/60/120 kHz
       sub_carriers_per_resource_block : 12 # Number of sub-carriers per RB
       symbols_per_slot: 14 # Number of symbols per slot
       overhead: 2 # Number of RE reserved for DMRS and other layers in the RB
