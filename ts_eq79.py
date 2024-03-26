@@ -107,7 +107,7 @@ class UE:
         self.start_TX = []    # !! Liste des temps de debuts de transmission de paquets
         self.end_TX = []      # !! Liste des temps de fins de transmission de paquets
         self.cqi = None       # CQI de l'UE avec son antenne
-        self.efficiency = None # Efficacité de la transmission avec l'antenne (obtenue a partir du CQI)
+        self.Fncy = None # Efficacité de la transmission avec l'antenne (obtenue a partir du CQI)
         self.TX_bits = []   # !! Liste des longueurs de paquet envoyés à chaque transmission de l'application de l'UE
         self.TX_law = None   # Loi de probabilite suivi par la longueur de paquets de l'application de l'UE
         self.TX_percent = None   # Precision de la longueur du paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
@@ -115,6 +115,8 @@ class UE:
         self.delay_law = None   # Loi de probabilite suivie par le temps d'arrivee inter-paquet de l'application de l'UE
         self.delay_percent = None   # Precision du temps d'arrivee inter-paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
         self.queue = []        # Liste contenant la quantité de bits non envoyés par manque de Resource Block disponibles du coté de l'antenne associée a chaque slot de temps dt 
+        self.R_law = None #!!! Ajouter
+
 
 # Cette classe est utilise pour repertorier tous les pathloss calculer avec les antenne et les ues utilisés
 class Pathloss:
@@ -400,6 +402,95 @@ def assigner_coordonnees_antennes(fichier_de_cas, fichier_de_devices):
 
 
 
+# Fonction utiliser pour  Génère les listes des temps de début et de fin de transmission de paquets pour une application UE donnée.
+#
+#
+def generate_transmission_times(app_config, fichier_de_cas):
+    """
+    Génère les listes des temps de début et de fin de transmission de paquets pour une application UE donnée.
+    
+    Args:
+    - app_config : dict contenant la configuration de l'application du UE (incluant la loi de distribution du temps d'inter-arrivée, la longueur des paquets, etc.).
+    - tstart : float, le temps de début de la simulation.
+    - tfinal : float, le temps de fin de la simulation.
+    
+    Returns:
+    - start_TX : Liste des temps de début de transmission de paquets.
+    - end_TX : Liste des temps de fin de transmission de paquets.
+    """
+    tstart = get_from_dict('tstart', fichier_de_cas)
+    tfinal = get_from_dict('tfinal', fichier_de_cas)
+    current_time = tstart  # Initialiser le temps actuel à tstart
+    start_TX = []  # Initialiser la liste des temps de début de transmission
+    end_TX = []    # Initialiser la liste des temps de fin de transmission
+    
+    while current_time < tfinal:
+        # Générer le temps d'inter-arrivée basé sur la loi de distribution spécifiée
+        if app_config['delay_law'] == 'exp':  # Si la loi est exponentielle
+            inter_arrival_time = np.random.exponential(app_config['delay_xpacket'])  # Générer le temps d'inter-arrivée selon une distribution exponentielle
+        elif app_config['delay_law'] == 'uniform':  # Si la loi est uniforme
+            min_delay = app_config['delay_xpacket'] * (1 - app_config['delay_percent'])  # Calculer la borne inférieure
+            max_delay = app_config['delay_xpacket'] * (1 + app_config['delay_percent'])  # Calculer la borne supérieure
+            inter_arrival_time = np.random.uniform(min_delay, max_delay)  # Générer le temps d'inter-arrivée selon une distribution uniforme
+        
+        # Calculer le temps de début de la prochaine transmission
+        start_TX.append(current_time)
+        
+        # Calculer la longueur du paquet
+        if app_config['R_law'] == 'uniform':  # Si la loi est uniforme
+            min_length = app_config['R'] * (1 - app_config['R_percent'])  # Calculer la borne inférieure
+            max_length = app_config['R'] * (1 + app_config['R_percent'])  # Calculer la borne supérieure
+            packet_length = np.random.uniform(min_length, max_length)  # Générer la longueur du paquet selon une distribution uniforme
+        
+        # Estimer le temps de transmission basé sur la longueur du paquet et la vitesse de transmission (simplifié ici)
+        # Cette partie dépend de la vitesse de transmission, qui n'est pas spécifiée, donc nous utilisons une approximation
+        transmission_time = packet_length / 1e6 # Supposons une vitesse de 1 Mbps pour l'exemple
+        
+        # Calculer le temps de fin de la transmission
+        end_TX.append(current_time + transmission_time)
+        
+        # Mettre à jour le temps actuel
+        current_time += inter_arrival_time
+    
+    return start_TX, end_TX
+
+
+
+
+
+# Fonction pour generer la liste des longueurs de paquets envoyés à chaque transmission de l'application de l'UE
+#
+#
+def generate_packet_lengths(app_config, fichier_de_cas):
+    """
+    Génère la liste des longueurs de paquets envoyés à chaque transmission de l'application de l'UE, pendant la durée de la simulation.
+    
+    Args:
+    - app_config : dict contenant la configuration de l'application du UE (incluant la loi de distribution de la longueur des paquets, etc.).
+    - tstart : float, le temps de début de la simulation.
+    - tfinal : float, le temps de fin de la simulation.
+    
+    Returns:
+    - packet_lengths : Liste des longueurs de paquets envoyés à chaque transmission.
+    """
+    packet_lengths = []  # Initialiser la liste des longueurs de paquets
+    tstart = get_from_dict('tstart', fichier_de_cas)
+    tfinal = get_from_dict('tfinal', fichier_de_cas)
+    current_time = tstart  # Initialiser le temps actuel à tstart
+    
+    while current_time < tfinal:
+        # Calculer la longueur du paquet
+        if app_config['R_law'] == 'uniform':  # Si la loi est uniforme
+            min_length = app_config['R'] * (1 - app_config['R_percent'])  # Calculer la borne inférieure
+            max_length = app_config['R'] * (1 + app_config['R_percent'])  # Calculer la borne supérieure
+            packet_length = np.random.uniform(min_length, max_length)  # Générer la longueur du paquet selon une distribution uniforme
+        packet_lengths.append(packet_length)  # Ajouter la longueur du paquet à la liste
+        
+        # Mettre à jour le temps actuel
+        current_time += app_config['delay_xpacket']  # Utiliser le temps d'inter-arrivée comme unité de temps
+        
+    return packet_lengths
+
 
 
 # ***********APPELER SEULEEMENT DANS LE CAS D'UN READ**************
@@ -437,8 +528,13 @@ def lire_coordonnees_ues(filename, fichier_de_devices):
                 ue.TX_percent = get_from_dict('R_percent', get_from_dict(group_ue,fichier_de_devices))
                 ue.delay_law = get_from_dict('delay_law', get_from_dict(group_ue,fichier_de_devices))
                 ue.delay_percent = get_from_dict('delay_percent', get_from_dict(group_ue,fichier_de_devices))
-                # TODO generate list of transmission times delay_xpacket and list of packet lenght TX_bits
+                ##
+                ue.R_law = get_from_dict('R_law',filename)
+                ##
                 # TODO generate start_TX and end_TX
+                ue.start_TX , ue.end_TX = generate_transmission_times(ue.R_law, filename)
+                # TODO generate list of transmission times delay_xpacket and list of packet lenght TX_bits
+                ue.TX_bits = generate_packet_lengths(ue.R_law, filename)
                 liste_ues_avec_coordonnees.append(ue)
 
     return liste_ues_avec_coordonnees

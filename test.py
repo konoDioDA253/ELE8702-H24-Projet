@@ -180,8 +180,8 @@ app_config_streaming_4k = {
 start_TX, end_TX = generate_transmission_times(app_config_streaming_4k, tstart, tfinal)
 
 # Afficher les premiers éléments pour vérifier
-print("Débuts de transmission (premiers éléments):", start_TX[:5])
-print("Fins de transmission (premiers éléments):", end_TX[:5])
+print("Débuts de transmission (premiers éléments):", start_TX[:10])
+print("Fins de transmission (premiers éléments):", end_TX[:10])
 
 
 
@@ -189,27 +189,33 @@ print("Fins de transmission (premiers éléments):", end_TX[:5])
 
 
 
-def generate_packet_lengths(app_config, num_transmissions):
+def generate_packet_lengths(app_config, tstart, tfinal):
     """
-    Génère la liste des longueurs de paquets envoyés à chaque transmission de l'application de l'UE.
+    Génère la liste des longueurs de paquets envoyés à chaque transmission de l'application de l'UE, pendant la durée de la simulation.
     
     Args:
     - app_config : dict contenant la configuration de l'application du UE (incluant la loi de distribution de la longueur des paquets, etc.).
-    - num_transmissions : int, nombre total de transmissions à générer.
+    - tstart : float, le temps de début de la simulation.
+    - tfinal : float, le temps de fin de la simulation.
     
     Returns:
     - packet_lengths : Liste des longueurs de paquets envoyés à chaque transmission.
     """
     packet_lengths = []  # Initialiser la liste des longueurs de paquets
-    #?? peux-etre mettre une condition sur le num_transmission en fonction de RB dispo??
-    for _ in range(num_transmissions):
+    
+    current_time = tstart  # Initialiser le temps actuel à tstart
+    
+    while current_time < tfinal:
         # Calculer la longueur du paquet
         if app_config['R_law'] == 'uniform':  # Si la loi est uniforme
             min_length = app_config['R'] * (1 - app_config['R_percent'])  # Calculer la borne inférieure
             max_length = app_config['R'] * (1 + app_config['R_percent'])  # Calculer la borne supérieure
             packet_length = np.random.uniform(min_length, max_length)  # Générer la longueur du paquet selon une distribution uniforme
         packet_lengths.append(packet_length)  # Ajouter la longueur du paquet à la liste
-    
+        
+        # Mettre à jour le temps actuel
+        current_time += app_config['delay_xpacket']  # Utiliser le temps d'inter-arrivée comme unité de temps
+        
     return packet_lengths
 
 # Exemple d'utilisation
@@ -217,12 +223,13 @@ app_config_streaming_4k = {
     'R': 400000,
     'R_law': 'uniform',
     'R_percent': 0.2,
+    'delay_xpacket': 200  # Temps d'inter-arrivée en ms
 }
 
-num_transmissions = 10  # Nombre total de transmissions à générer
 
 # Générer les longueurs de paquets envoyés à chaque transmission de l'application de l'UE
-packet_lengths = generate_packet_lengths(app_config_streaming_4k, num_transmissions)
+packet_lengths = generate_packet_lengths(app_config_streaming_4k, tstart, tfinal)
 
 # Afficher la liste des longueurs de paquets
-print("Longueurs de paquets envoyés à chaque transmission:", packet_lengths)
+print("Longueurs de paquets envoyés à chaque transmission:", packet_lengths[:10])
+
