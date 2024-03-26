@@ -17,6 +17,7 @@ import subprocess
 import matplotlib.pyplot as plt
 import numpy as np
 from pathloss_3gpp_eq79 import *
+import pandas as pd
 #TEST COMMENT
 # Variables GLOBAL
 infini = float('inf') #définition de l'infini
@@ -848,6 +849,42 @@ def verifie_presence_visibility_los(ue, antenne, fichier_de_cas, ues, antennas):
             if ids[0] == ue and antenne in ids[1:]:
                 return False
     return True
+
+# structure de CQI qui represente le tableau 5.2.2.1 4-bit
+cqi_table = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*7,
+    'code_rate_x_1024': [78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
+    'efficiency': [0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
+                   2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
+})
+# Fonction qui fait le mapping entre toute combinaison de ue et antenna (Selon le tableau 5.2.2.1 4-bit)
+# prend en parametre le pathloss (en dB) et une structure de CQI quelconque.
+# return une valeur de CQI associe au pathloss
+
+def estimate_cqi_from_pathloss(pathloss, cqi_table):
+    """
+    Estime le CQI basé sur le pathloss et une table de mapping CQI.
+    :param pathloss: Le pathloss en dB.
+    :param cqi_table: DataFrame contenant le mapping CQI.
+    :return: Index CQI estimé.
+    """
+    # Ici, nous allons simplement mapper le pathloss à l'efficacité en utilisant une relation inverse
+    # Plus le pathloss est élevé, plus l'efficacité devrait être faible (et donc un CQI plus bas)
+    # Les valeurs de seuil de pathloss doivent être déterminées par l'expérience ou la spécification réseau
+    #Pathloss_thresholds est une liste de seuil de pathloss ordonnées de la plus grande (mauvaise qualité de signal) à la plus petite (meilleure qualité de signal).
+    pathloss_thresholds = [140, 130, 120, 110, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0]
+    
+    # Trouver le premier seuil que le pathloss dépasse et retourner le CQI correspondant
+    for i, threshold in enumerate(pathloss_thresholds):
+        if pathloss > threshold:
+            return cqi_table['CQI_index'][i]
+    
+    # Si le pathloss est très faible, on retourne le CQI le plus élevé
+    # retourne la valeur CQI la plus elever, a la derniere valeur donc 15
+    return cqi_table['CQI_index'].iloc[-1]
+
+
 
 # ****************************AJOUTER CQI**********************************
 # Fonction permettant d'assigner un pathloss à chaque combinaison (antenne,UE) du terrain
