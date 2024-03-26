@@ -4,8 +4,7 @@
 ## Equipier MATRICULE
 ## Equipier MATRICULE
 ## Équipe : 79
-## Github link : https://github.com/konoDioDA253/ELE8702-H24-Lab3
-# TEST TEST
+## Github link : https://github.com/konoDioDA253/ELE8702-H24-Projet
 import sys
 import threading
 import math
