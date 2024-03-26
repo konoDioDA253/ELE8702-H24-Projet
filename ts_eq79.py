@@ -405,7 +405,7 @@ def assigner_coordonnees_antennes(fichier_de_cas, fichier_de_devices):
 # Fonction utiliser pour  Génère les listes des temps de début et de fin de transmission de paquets pour une application UE donnée.
 #
 #
-def generate_transmission_times(app_config, fichier_de_cas):
+def generate_transmission_times(group_ue, fichier_de_cas, fichier_de_devices):
     """
     Génère les listes des temps de début et de fin de transmission de paquets pour une application UE donnée.
     
@@ -418,6 +418,17 @@ def generate_transmission_times(app_config, fichier_de_cas):
     - start_TX : Liste des temps de début de transmission de paquets.
     - end_TX : Liste des temps de fin de transmission de paquets.
     """
+    
+    # Stocker les donnees de l'application dans une liste 
+    app_config = {
+        'delay_xpacket': get_from_dict('delay_xpacket', get_from_dict(group_ue,fichier_de_devices)),
+        'delay_law': get_from_dict('delay_law', get_from_dict(group_ue,fichier_de_devices)),
+        'R':  get_from_dict('R', get_from_dict(group_ue,fichier_de_devices)),
+        'R_law': get_from_dict('R_law', get_from_dict(group_ue,fichier_de_devices)),
+        'R_percent': get_from_dict('R_percent', get_from_dict(group_ue,fichier_de_devices)),
+        'delay_percent': get_from_dict('delay_percent', get_from_dict(group_ue,fichier_de_devices)),
+    }
+
     tstart = get_from_dict('tstart', fichier_de_cas)
     tfinal = get_from_dict('tfinal', fichier_de_cas)
     current_time = tstart  # Initialiser le temps actuel à tstart
@@ -461,7 +472,7 @@ def generate_transmission_times(app_config, fichier_de_cas):
 # Fonction pour generer la liste des longueurs de paquets envoyés à chaque transmission de l'application de l'UE
 #
 #
-def generate_packet_lengths(app_config, fichier_de_cas):
+def generate_packet_lengths(group_ue, fichier_de_cas, fichier_de_devices):
     """
     Génère la liste des longueurs de paquets envoyés à chaque transmission de l'application de l'UE, pendant la durée de la simulation.
     
@@ -473,6 +484,17 @@ def generate_packet_lengths(app_config, fichier_de_cas):
     Returns:
     - packet_lengths : Liste des longueurs de paquets envoyés à chaque transmission.
     """
+    # Stocker les donnees de l'application dans une liste 
+    app_config = {
+        'delay_xpacket': get_from_dict('delay_xpacket', get_from_dict(group_ue,fichier_de_devices)),
+        'delay_law': get_from_dict('delay_law', get_from_dict(group_ue,fichier_de_devices)),
+        'R':  get_from_dict('R', get_from_dict(group_ue,fichier_de_devices)),
+        'R_law': get_from_dict('R_law', get_from_dict(group_ue,fichier_de_devices)),
+        'R_percent': get_from_dict('R_percent', get_from_dict(group_ue,fichier_de_devices)),
+        'delay_percent': get_from_dict('delay_percent', get_from_dict(group_ue,fichier_de_devices)),
+    }
+
+
     packet_lengths = []  # Initialiser la liste des longueurs de paquets
     tstart = get_from_dict('tstart', fichier_de_cas)
     tfinal = get_from_dict('tfinal', fichier_de_cas)
@@ -497,7 +519,7 @@ def generate_packet_lengths(app_config, fichier_de_cas):
 # Fonction initialisant une liste de antennes et assignant des coordonnées selon la grille à chaque antenne
 # Nbre de param: 1 (filename = nom du fichier a lire) 
 # Valeur de retour: liste_ues_avec_coordonnees = liste des ues avec leur coordonnées
-def lire_coordonnees_ues(filename, fichier_de_devices):
+def lire_coordonnees_ues(filename, fichier_de_devices, fichier_de_cas):
     liste_ues_avec_coordonnees = []
     print(f"INFO : Reading UEs data in file '{filename}' in the current directory.")
     # Ouvrir le fichier en mode lecture
@@ -529,12 +551,12 @@ def lire_coordonnees_ues(filename, fichier_de_devices):
                 ue.delay_law = get_from_dict('delay_law', get_from_dict(group_ue,fichier_de_devices))
                 ue.delay_percent = get_from_dict('delay_percent', get_from_dict(group_ue,fichier_de_devices))
                 ##
-                ue.R_law = get_from_dict('R_law',filename)
+                # ue.R_law = get_from_dict('R_law', get_from_dict(group_ue,fichier_de_devices))
                 ##
                 # TODO generate start_TX and end_TX
-                ue.start_TX , ue.end_TX = generate_transmission_times(ue.R_law, filename)
+                ue.start_TX , ue.end_TX = generate_transmission_times(ue.group, fichier_de_cas, fichier_de_devices)
                 # TODO generate list of transmission times delay_xpacket and list of packet lenght TX_bits
-                ue.TX_bits = generate_packet_lengths(ue.R_law, filename)
+                ue.TX_bits = generate_packet_lengths(ue.group, fichier_de_cas, fichier_de_devices)
                 liste_ues_avec_coordonnees.append(ue)
 
     return liste_ues_avec_coordonnees
@@ -949,31 +971,31 @@ def verifie_presence_visibility_los(ue, antenne, fichier_de_cas, ues, antennas):
 # structure de CQI qui represente le tableau 5.2.2.1-2 4-bit
 cqi_table_5_2_2_1_2 = pd.DataFrame({
     'CQI_index': range(16),
-    'modulation': ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
-    'code_rate_x_1024': [78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
-    'efficiency': [0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
+    'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
+    'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
+    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
                    2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
 })
 
 # structure de CQI qui represente le tableau 5.2.2.1-3 4-bit
 cqi_table_updated_5_2_2_1_3 = pd.DataFrame({
     'CQI_index': range(16),
-    'modulation': ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
-    'code_rate_x_1024': [78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
-    'efficiency': [0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
+    'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
+    'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
+    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
                    5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
 })
 # structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
 cqi_table_updated_5_2_2_1_4 = pd.DataFrame({
     'CQI_index': range(16),
-    'modulation': [
+    'modulation': [None] + [
         'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK',
         '16QAM', '16QAM', '16QAM', '64QAM', '64QAM', '64QAM', '64QAM'
     ],
     'code_rate_x_1024': [
-        30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
+        None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
     ],
-    'efficiency': [ 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
+    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
         1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
 })
 
@@ -1381,7 +1403,7 @@ def ts (data_case):
         # antennas = assigner_coordonnees_antennes(fichier_de_cas, fichier_de_devices)
     if mode == True :
         sanity_check_coordinates_file(coord_file_name)        
-        ues = lire_coordonnees_ues(coord_file_name, fichier_de_devices)
+        ues = lire_coordonnees_ues(coord_file_name, fichier_de_devices, fichier_de_cas)
         antennas = lire_coordonnees_antennes(coord_file_name, fichier_de_devices)
     return (antennas,ues)
 
