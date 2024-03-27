@@ -474,7 +474,7 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
         if next_packet_arrival_time < true_transmission_time :
             # Calculer le nombre de bits non-envoyés
             bits_not_sent = (true_transmission_time-next_packet_arrival_time)*standard_true_transmission_speed
-            ue.buffer.append(bits_not_sent)
+            ue.buffer.append(round(bits_not_sent))
             end_of_transmission =  current_time + next_packet_arrival_time
         else:
             end_of_transmission =  current_time + true_transmission_time
@@ -486,9 +486,15 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
         # Calculer le temps de fin de la transmission et le rajouter a end_TX
         end_TX.append(end_of_transmission)
         
+        if end_of_transmission > tfinal :
+            packet_length_list.pop()
+            start_TX.pop()
+            end_TX.pop()
+
         # Mettre à jour le temps actuel
         current_time += next_packet_arrival_time
-    
+
+    packet_length_list = [round(num_bits) for num_bits in packet_length_list]
     return start_TX, end_TX, packet_length_list
 
 
@@ -1332,73 +1338,85 @@ def get_slot_duration(antennas) :
 # Valeur de retour : antennas = liste d'objets Antenna, ues = liste d'objets UE
 def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ues) :
 
-    temps_initial = get_from_dict('tstart',fichier_de_cas) # temps de debut de simulation
-    temps_final = get_from_dict('tfinal',fichier_de_cas) # temps de fin de simulation
-    pas_temps = get_slot_duration(antennas) # pas de temps dt
+    temps_initial_ms = get_from_dict('tstart',fichier_de_cas) # temps de debut de simulation
+    temps_initial = temps_initial_ms/1000
+    temps_final_ms = get_from_dict('tfinal',fichier_de_cas) # temps de fin de simulation
+    temps_final = temps_final_ms/1000
+    pas_temps_ms = get_slot_duration(antennas) # pas de temps dt
+    pas_temps = pas_temps_ms/1000
     # segment_filename = get_from_dict('read', get_from_dict('CLOCK', fichier_de_cas)) # Nom du fichier de segment
     sanity_check_timing_values(temps_initial, temps_final, pas_temps)
-
+    standard_true_transmission_speed = get_from_dict('true_transmission_speed', fichier_de_cas)
     # Lire le fichier de segments et en extraire les informations de transmission des UEs
     # sanity_check_transmission_profile(fichier_de_cas)
     # ues = lire_fichier_segments(segment_filename, ues)
 
 
-    # # Boucle de simulation
-    # temps_courant = temps_initial
-    # while temps_courant < 0.99*(temps_final-(temps_final-pas_temps*int((temps_final - temps_initial) / pas_temps))) + temps_initial : # tant que le temps courant est inferieur au temps de fin de simulation
-    #     # Logique de simulation de transmission de paquets entre antennes et UEs
-    #     # Pour chaque UE
-    #     for ue in ues:
-    #         # Verifier si l'UE a des transmissions prevues pendant ce pas de temps
-    #         # if ue.id == 2 :
-    #         #     print("EH!")
-    #         for i in range(len(ue.start_TX)):
-    #             if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
-    #                 M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
-    #                 R = ue.TX_rate*1000  # Débit de la transmission en bits per second
-    #                 nbits_transmis = int(R * M)  # Nombre de bits transmis
-    #                 # Mettre a jour l'attribut nbits de l'UE 
-    #                 # if len(ue.nbits) >= (temps_courant + pas_temps) :
-    #                 #     ue.nbits[int(temps_courant / pas_temps)] += nbits_transmis 
-    #                 # else:
-    #                 #     ue.nbits.append(nbits_transmis)
+    # Boucle de simulation
+    temps_courant = temps_initial
+    while temps_courant < 0.99*(temps_final-(temps_final-pas_temps*int((temps_final - temps_initial) / pas_temps))) + temps_initial : # tant que le temps courant est inferieur au temps de fin de simulation
+        # Logique de simulation de transmission de paquets entre antennes et UEs
+        # Pour chaque UE
+        for ue in ues:
+            # Verifier si l'UE a des transmissions prevues pendant ce pas de temps
+            # if ue.id == 2 :
+            #     print("EH!")
+            for i in range(len(ue.start_TX)):
+                if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
+                    M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
+                    # R = ue.TX_rate*1000  # Débit de la transmission en bits per second
+                    if ue.TX_bits[i] > 0:
+                        nbits_transmis = round(M*standard_true_transmission_speed)  # Nombre de bits transmis
+                        ue.TX_bits[i] -= nbits_transmis
+                        if ue.TX_bits[i] < 0 :
+                            ue.TX_bits[i] = 0
+                    else :
+                        nbits_transmis = 0
+                        
+                    # Mettre a jour l'attribut nbits de l'UE 
+                    # if len(ue.nbits) >= (temps_courant + pas_temps) :
+                    #     ue.nbits[int(temps_courant / pas_temps)] += nbits_transmis 
+                    # else:
+                    #     ue.nbits.append(nbits_transmis)
 
-    #                 if ue.nbits == [] :
-    #                     # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
-    #                     while len(ue.nbits) < int((temps_final - temps_initial) / pas_temps) :
-    #                         ue.nbits.append(0)
-    #                 ue.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
+                    if ue.nbits == [] :
+                        # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
+                        while len(ue.nbits) < int((temps_final - temps_initial) / pas_temps) :
+                            ue.nbits.append(0)
+                    ue.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
                     
-    #                 # Mettre à jour les donnees de l'antenne associee
-    #                 antenne_associee_id = ue.assoc_ant
-    #                 for antenne in antennas:
-    #                     if antenne.id == antenne_associee_id:
-    #                         # if len(antenne.nbits) >= (temps_courant + pas_temps):
-    #                         #     # while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
-    #                         #     #     # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
-    #                         #     #     antenne.nbits.append(0)
-    #                         #     # Mettre à jour l'attribut nbits de l'antenne
-    #                         #     antenne.nbits[int(temps_courant / pas_temps)]  += nbits_transmis
-    #                         # else :
-    #                         #     antenne.nbits.append(nbits_transmis)
+                    # RECEPTION ANTENNE
+                    # Mettre à jour les donnees de l'antenne associee
+                    # TODO Faire la logique d'acceptation du paquet coté antenne avec le concept de resource block
+                    antenne_associee_id = ue.assoc_ant
+                    for antenne in antennas:
+                        if antenne.id == antenne_associee_id:
+                            # if len(antenne.nbits) >= (temps_courant + pas_temps):
+                            #     # while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
+                            #     #     # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
+                            #     #     antenne.nbits.append(0)
+                            #     # Mettre à jour l'attribut nbits de l'antenne
+                            #     antenne.nbits[int(temps_courant / pas_temps)]  += nbits_transmis
+                            # else :
+                            #     antenne.nbits.append(nbits_transmis)
                             
-    #                         if antenne.nbits == [] :
-    #                             # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
-    #                             while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
-    #                                 antenne.nbits.append(0)
-    #                         antenne.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
+                            if antenne.nbits == [] :
+                                # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
+                                while len(antenne.nbits) < int((temps_final - temps_initial) / pas_temps) :
+                                    antenne.nbits.append(0)
+                            antenne.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
                             
-    #                         # Ajouter l'UE à la liste des UEs actives de l'antenne si pas deja ajoute 
-    #                         if antenne.live_ues == [] :
-    #                             while len(antenne.live_ues) < int((temps_final - temps_initial) / pas_temps) :
-    #                                 antenne.live_ues.append([])
-    #                         if ue.id not in antenne.live_ues[int(temps_courant / pas_temps) - int(round(temps_initial / pas_temps))]:
-    #                             antenne.live_ues[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))].append(ue.id)                            
-    #                         break
+                            # Ajouter l'UE à la liste des UEs actives de l'antenne si pas deja ajoute 
+                            if antenne.live_ues == [] :
+                                while len(antenne.live_ues) < int((temps_final - temps_initial) / pas_temps) :
+                                    antenne.live_ues.append([])
+                            if ue.id not in antenne.live_ues[int(temps_courant / pas_temps) - int(round(temps_initial / pas_temps))]:
+                                antenne.live_ues[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))].append(ue.id)                            
+                            break
 
         
-    #     # Mise à jour du temps
-    #     temps_courant += pas_temps
+        # Mise à jour du temps
+        temps_courant += pas_temps
 
     
     return antennas, ues
