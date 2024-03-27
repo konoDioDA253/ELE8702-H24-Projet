@@ -427,12 +427,19 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
         'R_percent': get_from_dict('R_percent', get_from_dict(ue.group,fichier_de_devices)),
         'delay_percent': get_from_dict('delay_percent', get_from_dict(ue.group,fichier_de_devices)),
     }
+    delay_xpacket_ms = app_config['delay_xpacket']
+    delay_xpacker_s = delay_xpacket_ms/1000
+    delay_law = app_config['delay_law']
+    delay_percent = app_config['delay_percent']
+    R_bps = app_config['R']
+    R_law = app_config['R_law']
+    R_percent = app_config['R_percent']
 
     tstart_ms = get_from_dict('tstart', fichier_de_cas)
     tstart = tstart_ms/1000
     tfinal_ms = get_from_dict('tfinal', fichier_de_cas)
     tfinal = tfinal_ms/1000
-    current_time = tstart  # Initialiser le temps actuel à tstart
+    current_time = tstart + np.random.uniform(tstart,  delay_xpacker_s) # Initialiser le temps actuel à un nombre aleatoire uniforme entre 0 et le delai inter-packet
     start_TX = []  # Initialiser la liste des temps de début de transmission
     end_TX = []    # Initialiser la liste des temps de fin de transmission
     packet_length_list = [] # Initialiser la liste des longueurs de paquets
@@ -443,10 +450,7 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
         # while verify_transmission_interval_integrity(start_TX, end_TX, current_time, true_transmission_time) == False :
         #     # 
         # Générer le temps d'inter-arrivée basé sur la loi de distribution spécifiée
-        delay_xpacket_ms = app_config['delay_xpacket']
-        delay_xpacker_s = delay_xpacket_ms/1000
-        delay_law = app_config['delay_law']
-        delay_percent = app_config['delay_percent']
+
 
         if delay_law == 'exp':  # Si la loi est exponentielle
             next_packet_arrival_time = np.random.exponential(delay_xpacker_s)  # Générer le temps d'inter-arrivée selon une distribution exponentielle
@@ -455,9 +459,7 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
             max_delay = delay_xpacker_s * (1 + delay_percent)  # Calculer la borne supérieure
             next_packet_arrival_time = np.random.uniform(min_delay, max_delay)  # Générer le temps d'inter-arrivée selon une distribution uniforme
         
-        R_bps = app_config['R']
-        R_law = app_config['R_law']
-        R_percent = app_config['R_percent']
+
         # Calculer la longueur du paquet
         if R_law == 'uniform':  # Si la loi est uniforme
             min_length = R_bps * (1 - R_percent)  # Calculer la borne inférieure
@@ -702,6 +704,14 @@ def write_assoc_ant_to_file(ues):
             line = f"{ue.id}\t{ue.assoc_ant}\n"
             file.write(line)
     print(f"INFO : Wrote file '{filename}' in the current directory.")
+    
+# Fonction permettant de connaitre la duree d'un slot en fonction de l'espacement entre sous-porteuse qu'on utilise
+def get_slot_duration(antennas) :
+    scs = antennas[0].sub_carrier_spacing
+    pas_temps = {15: 1.0, 30: 0.5, 60: 0.25, 120: 0.125}.get(scs, None)
+    if pas_temps == None :
+        ERROR("Espacement entre sous-porteuse incorrect dans le fichier de devices database, veuillez mettre l'une de ces valeurs pour les antennes : 15, 30, 60, 120")
+    return pas_temps
 
 # Fonction qui ecrit dans un fichier les id des antennes suivi du nomnbre de bits recus avec les ues concernees a chaque dt de la transmission
 # Parametre : 2 (liste des antennes et fichier de cas)
@@ -709,7 +719,7 @@ def write_transmission_ant_to_file(antennas, fichier_de_cas):
     filename = transmission_ant_file_name # nom du fichier dans lequel on veut ecrire 
     temps_initial = get_from_dict('tstart',fichier_de_cas) # temps de debut de simulation
     temps_final = get_from_dict('tfinal',fichier_de_cas) # temps de fin de simulation
-    pas_temps = get_from_dict('dt',fichier_de_cas) # pas de temps dt
+    pas_temps = get_slot_duration(antennas) # pas de temps dt
     segment_filename = get_from_dict('read', get_from_dict('CLOCK', fichier_de_cas)) # Nom du fichier de segment
     with open(filename, 'w') as file:
         for antenna in antennas:
@@ -733,11 +743,11 @@ def write_transmission_ant_to_file(antennas, fichier_de_cas):
 
 # Fonction qui ecrit dans un fichier les id des ues suivi du nombre de bits recus a chaque dt de la transmission
 # Parametre : 2 (liste des ues et fichier de cas)
-def write_transmission_ue_to_file(ues, fichier_de_cas):
+def write_transmission_ue_to_file(ues, antennas, fichier_de_cas):
     filename = transmission_ue_file_name # nom du fichier dans lequel on veut ecrire 
     temps_initial = get_from_dict('tstart',fichier_de_cas) # temps de debut de simulation
     temps_final = get_from_dict('tfinal',fichier_de_cas) # temps de fin de simulation
-    pas_temps = get_from_dict('dt',fichier_de_cas) # pas de temps dt
+    pas_temps = get_slot_duration(antennas) # pas de temps dt
     segment_filename = get_from_dict('read', get_from_dict('CLOCK', fichier_de_cas)) # Nom du fichier de segment
     with open(filename, 'w') as file:
         for ue in ues:
@@ -1325,7 +1335,7 @@ def sanity_check_timing_values(temps_initial, temps_final, pas_temps):
     if pas_temps <= 0:
         ERROR("dt MUST be a positive value.")
 
-
+# Fonction permettant de connaitre la duree d'un slot en fonction de l'espacement entre sous-porteuse qu'on utilise
 def get_slot_duration(antennas) :
     scs = antennas[0].sub_carrier_spacing
     pas_temps = {15: 1.0, 30: 0.5, 60: 0.25, 120: 0.125}.get(scs, None)
@@ -1543,8 +1553,8 @@ def plot_equipment_positions(antennas, ues, plot_filename):
     # Sauvegarder le graphique dans un fichier PNG
     png_filename = f"{filename}.png"
     plt.savefig(png_filename)
-    # # Sauvegarde en PNG
-    # plt.savefig("disp_plot_disposition_equipements.png", format='png')
+    # Sauvegarde en PNG
+    plt.savefig("disp_plot_disposition_equipements.png", format='png')
     plt.close()
 
 
@@ -1578,8 +1588,8 @@ def plot_average_traffic_ues(filename, ues):
     # Sauvegarder le graphique dans un fichier PNG
     png_filename = f"{filename}.png"
     plt.savefig(png_filename)
-    # # Sauvegarde en PNG
-    # plt.savefig("disp_average_traffic_ues.png", format='png')
+    # Sauvegarde en PNG
+    plt.savefig("disp_average_traffic_ues.png", format='png')
 
     plt.close()
 
@@ -1609,8 +1619,8 @@ def plot_average_traffic_antennas(filename, antennas):
     # Sauvegarder le graphique dans un fichier PNG
     png_filename = f"{filename}.png"
     plt.savefig(png_filename)
-    # # Sauvegarde en PNG
-    # plt.savefig("disp_average_traffic_antennas.png", format='png')
+    # Sauvegarde en PNG
+    plt.savefig("disp_average_traffic_antennas.png", format='png')
 
     plt.close()
 
@@ -1621,7 +1631,7 @@ def plot_average_traffic_antennas(filename, antennas):
 # Valeur de retour : None
 def plot_bits_received_per_slot(antennas, ues, fichier_de_cas, filename_prefix):
 
-    slot_interval = get_from_dict('dt',fichier_de_cas) # pas de temps dt
+    slot_interval = get_slot_duration(antennas) # pas de temps dt
     temps_initial = get_from_dict('tstart',fichier_de_cas)
     temps_final = get_from_dict('tfinal',fichier_de_cas)
     num_slots = int((temps_final-temps_initial)/slot_interval)  # Nombre de créneaux basé sur la longueur de la liste de bits reçus d'un UE
@@ -1665,8 +1675,8 @@ def plot_bits_received_per_slot(antennas, ues, fichier_de_cas, filename_prefix):
     png_filename = f"{filename_prefix}.png"
     plt.savefig(png_filename, format='png')
 
-    # # Sauvegarde en PNG
-    # plt.savefig("disp_average_traffic_per_slot.png", format='png')
+    # Sauvegarde en PNG
+    plt.savefig("disp_average_traffic_per_slot.png", format='png')
 
     # Sauvegarde en PDF
     pdf_filename = f"{filename_prefix}.pdf"
@@ -1852,10 +1862,10 @@ def main(arg):
     write_pathloss_to_file(pathlosses, fichier_de_cas)
     write_assoc_ues_to_file(antennas)
     write_assoc_ant_to_file(ues)
-    # write_transmission_ant_to_file(antennas, fichier_de_cas)
-    # write_transmission_ue_to_file(ues, fichier_de_cas)
-    # input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues"]
-    # create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
+    write_transmission_ant_to_file(antennas, fichier_de_cas)
+    write_transmission_ue_to_file(ues, antennas, fichier_de_cas)
+    input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues"]
+    create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
     # # pass
 
 if __name__ == '__main__':
