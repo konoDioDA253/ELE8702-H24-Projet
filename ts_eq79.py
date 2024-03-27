@@ -1,9 +1,8 @@
 ## Numéro d'équipe : 79
 ## Bouh Abdillahi (Matricule : 1940646)
 ## Vincent Yves Nodjom (Matricule : 1944011)
-## Equipier MATRICULE
-## Equipier MATRICULE
-## Équipe : 79
+## Abdenour Taoufella (Matricule : 2055374)
+## Mohamed Anis Mekkaoui (Matricule : 2051493)
 ## Github link : https://github.com/konoDioDA253/ELE8702-H24-Projet
 import sys
 import threading
