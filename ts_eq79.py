@@ -187,6 +187,39 @@ def fill_up_the_lattice(N, lh, lv, nh, nv):
         y = y +deltav
     return coords
 
+# structure de CQI qui represente le tableau 5.2.2.1-2 4-bit
+cqi_table_5_2_2_1_2 = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
+    'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
+    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
+                   2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
+})
+
+# structure de CQI qui represente le tableau 5.2.2.1-3 4-bit
+cqi_table_5_2_2_1_3 = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
+    'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
+    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
+                   5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
+})
+# structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
+cqi_table_5_2_2_1_4 = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': [None] + [
+        'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK',
+        '16QAM', '16QAM', '16QAM', '64QAM', '64QAM', '64QAM', '64QAM'
+    ],
+    'code_rate_x_1024': [
+        None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
+    ],
+    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
+        1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
+})
+
+
+
 # Fonction utilisee dans la generation de coordonnees des antennes
 # Nbre de param: 6 (lh = longeur horizontal, lv = longeur vertival, N = nombre total de point ,np = nbre de point, nh = nbre de point en horizontal, nv = nbre de point en vertical)
 # valeur de retour: coords = coordonnees
@@ -1070,6 +1103,7 @@ def estimate_cqi_from_pathloss(pathloss, cqi_table):
 # Nbre param: 4 (fichier_de_cas, fichier_de_device, antennas = liste des antenne, ues =liste des ues)
 # Valeur de retour: pathloss_list = liste des pathloss calculer, warning_log = message d'avertissement 
 def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
+    cqi_value = get_from_dict('CQI', fichier_de_cas)
     pathloss_list =[]
     warning_log = ""
     model = get_from_dict('model', fichier_de_cas)
@@ -1093,6 +1127,12 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                         pathloss_value, warning_message = rma_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
+                    if (cqi_value == 2):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                    elif(cqi_value == 3):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                    elif (cqi_value == 4):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
 
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1109,6 +1149,12 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                         pathloss_value, warning_message = uma_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
+                    if (cqi_value == 2):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                    elif(cqi_value == 3):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                    elif (cqi_value == 4):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
                     
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1124,6 +1170,12 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                         pathloss_value, warning_message = umi_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
+                    if (cqi_value == 2):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                    elif(cqi_value == 3):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                    elif (cqi_value == 4):
+                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
                     
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1143,6 +1195,13 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                 pathloss_value, warning_message = okumura(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                 pathloss.value = pathloss_value
                 # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
+                if (cqi_value == 2):
+                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                elif(cqi_value == 3):
+                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                elif (cqi_value == 4):
+                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
+
 
                 warning_log += warning_message
                 pathloss_list.append(pathloss)
@@ -1159,9 +1218,10 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
 # Fonction permettant d'associer les UEs du terrain a leur antenne ayant le pathloss minimal
 # Nbre de param: 3 (pathlosses = liste des pathloss, antennas = liste des antenne, ues = liste des ues)
 # Valeur de retour: antennas = liste des antennes associer, ues = liste des ues associer
-def association_ue_antenne(pathlosses, antennas, ues):
+def association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues):
     # Initialiser un dictionnaire pour stocker l'antenne avec le pathloss le plus petit pour chaque UE
     ue_to_antenna = {}
+    cqi_value = get_from_dict('CQI', fichier_de_cas)
 
     for pathloss_object in pathlosses:
         ue_id = pathloss_object.id_ue
@@ -1174,15 +1234,28 @@ def association_ue_antenne(pathlosses, antennas, ues):
         # TODO : Aller chercher la valeur du CQI en plus du pathloss
         if ue_id not in ue_to_antenna or pathloss_value < ue_to_antenna[ue_id][1]:
             ue_to_antenna[ue_id] = (ant_id, pathloss_value, pathloss_los)
+            if (cqi_value == 2):
+                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_2 )
+            elif(cqi_value == 3):
+                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_3 )
+            elif (cqi_value == 4):
+                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_4 )
+
 
     # Mettre a jour l'attribut assoc_ant de l'UE correspondante
-    for ue_id, (ant_id, _, pathloss_los) in ue_to_antenna.items():
+    for ue_id, (ant_id, pathloss_value, pathloss_los) in ue_to_antenna.items():
         ue = next((ue for ue in ues if ue.id == ue_id), None)
         if ue:
             ue.assoc_ant = ant_id
             ue.los = pathloss_los
+            ue.pathloss = pathloss_value  # Store the best pathloss value in the UE object
             # TODO : Associer la valeur du CQI en plus du pathloss
-        
+            if (cqi_value == 2):
+                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_2 )
+            elif(cqi_value == 3):
+                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_3 )
+            elif (cqi_value == 4):
+                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_4 )
 
     # Mettre a jour l'attribut assoc_ue de l'antenne correspondante
     for ant in antennas:
@@ -1429,6 +1502,62 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
 
     
     return antennas, ues
+
+
+
+# structure de CQI qui represente le tableau 5.2.2.1-2 4-bit
+cqi_table_5_2_2_1_2 = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
+    'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
+    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
+                   2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
+})
+
+# structure de CQI qui represente le tableau 5.2.2.1-3 4-bit
+cqi_table_5_2_2_1_3 = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
+    'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
+    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
+                   5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
+})
+# structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
+cqi_table_5_2_2_1_4 = pd.DataFrame({
+    'CQI_index': range(16),
+    'modulation': [None] + [
+        'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK',
+        '16QAM', '16QAM', '16QAM', '64QAM', '64QAM', '64QAM', '64QAM'
+    ],
+    'code_rate_x_1024': [
+        None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
+    ],
+    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
+        1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
+})
+
+# Fonction qui fait le mapping entre toute combinaison de ue et antenna (Selon le tableau 5.2.2.1 4-bit)
+# prend en parametre le pathloss (en dB) et une structure de CQI quelconque.
+# return une valeur de CQI associe au pathloss
+
+def estimate_cqi_from_pathloss(pathloss_value, cqi_table):
+    """
+    Estime le CQI basé sur le pathloss (en dB) et une table de mapping CQI.
+    :param pathloss_value: Le pathloss en dB comme un double (float).
+    :param cqi_table: DataFrame contenant le mapping CQI.
+    :return: Index CQI estimé.
+    """
+    pathloss_thresholds = [140.00, 130.00, 120.00, 110.00, 100.00, 90.00, 80.00, 70.00, 60.00, 50.00, 40.00, 30, 20, 10, 0]
+    
+    # Trouver le premier seuil que le pathloss dépasse et retourner le CQI correspondant
+    for i, threshold in enumerate(pathloss_thresholds):
+        if pathloss_value > threshold:
+            return cqi_table['CQI_index'][i]  # Assuming 'CQI_index' is the correct column name in your DataFrame
+
+    # If no threshold is exceeded, return the highest CQI index by default
+    return cqi_table['CQI_index'].iloc[-1]
+
+
 
 
 # Fonction ts requise, retourne une liste d'antenne et une liste d'UE
@@ -1850,7 +1979,7 @@ def main(arg):
 
     # Calcul pathloss et Association
     pathlosses, warning_log = pathloss_attribution(fichier_de_cas,fichier_de_device,antennas,ues)
-    antennas, ues = association_ue_antenne(pathlosses, antennas, ues)
+    antennas, ues = association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues)
 
     # Transmission des paquets
     antennas, ues = simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ues)
