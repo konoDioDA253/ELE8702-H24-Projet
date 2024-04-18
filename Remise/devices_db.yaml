@@ -1,0 +1,112 @@
+################################################
+#                                              #
+#     devices_db:                              #
+#     File: devices_db.yaml                    #
+#     Description: Base de données avec        #
+#                  info des dispositifs        #
+#                                              #
+################################################
+ANTENNAS:
+  Antenna1:
+    type: antenna
+    name: XYZ21
+    height: 10
+    frequency:  28 #GHz
+    gain:  40
+    scs: 120 #sub-carrier spacing in kHz
+    bandwidth: 200 #antenna bandwith in MHz
+#
+  Antenna2:
+    type: antenna
+    name: YZX14
+    height: 35
+    frequency:  0.9 #GHz
+    gain:  45
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
+#
+  Antenna3:
+    type: antenna
+    name: WWTN4
+    height: 10
+    frequency:  28 #GHz
+    gain:  40
+    scs: 60 #sub-carrier spacing in kHz
+    bandwidth: 200 #antenna bandwith in MHz
+#
+  Antenna4:
+    type: antenna
+    name: XYZ38
+    height: 35
+    frequency:  0.9 #GHz
+    gain:  45
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
+ #
+  Antenna5:
+    type: antenna
+    name: MYANT
+    height: 37
+    frequency:  0.250 #GHz
+    gain:  30 
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
+        
+#
+  Antenna6:
+    type: antenna
+    name: RWVCX
+    height: 20
+    frequency:  1.4 #GHz
+    gain:  30 
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
+        
+#
+  Antenna7:
+    type: antenna
+    name: NICEANT
+    height: 30
+    frequency:  3.2 #GHz
+    gain:  35 
+    scs: 15 #sub-carrier spacing in kHz
+    bandwidth: 40 #antenna bandwith in MHz
+
+# Attribute R is now the packet length instead of the bit rate (compared to past labs)    
+UES:
+  UE1-App1:
+    type: ue
+    name: UE-type1
+    app: Streaming-4K
+    height:  1.5
+    R : 400000 #standard packet length in bits
+    R_law : uniform #probability law followed by the packet-length
+    R_percent : 0.2 #percentage of accuracy
+    delay_xpacket: 200 #in ms, represents the inter-packet delay
+    delay_law: exp #probability law followed by the inter-packet delay
+    delay_percent: 0 #percentage of accuracy of the uniform law
+
+  UE2-App2:
+    type: ue
+    name: UE-type2
+    app: Controle-Drone
+    height:  1.5
+    R : 100 #standard packet length in bits
+    R_law : uniform #probability law followed by the packet-length
+    R_percent : 0.05 #percentage of accuracy of the uniform law
+    delay_xpacket: 35 #in ms, represents the inter-packet delay
+    delay_law: uniform #probability law followed by the inter-packet delay
+    delay_percent: 0.1428571429 #percentage of accuracy of the uniform law
+
+
+  UE3-App3:
+    type: ue
+    name: UE-type3
+    app: Detection-Automobile
+    height:  1.5
+    R : 100 #standard packet length in bits
+    R_law : uniform #probability law followed by the packet-length
+    R_percent : 0.05 #percentage of accuracy of the uniform law
+    delay_xpacket: 1000 #in ms, represents the inter-packet delay
+    delay_law: uniform #probability law followed by the inter-packet delay
+    delay_percent: 0.3 #percentage of accuracy of the uniform law

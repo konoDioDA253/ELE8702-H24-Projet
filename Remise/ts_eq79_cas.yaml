@@ -1,0 +1,48 @@
+###############################################
+#                                             #
+#         Cas ts:                          #
+#            File: ts_eq79_cas.yaml         #
+#            Description: Etude Transmisssion #
+#                                             #
+###############################################
+ETUDE_DE_TRANSMISSION:
+   PATHLOSS :
+      model : 3gpp
+      scenario : UMa
+   ANT_COORD_GEN : g
+   UE_COORD_GEN: a
+   COORD_FILES:  # Used when coordinates are read from a file 
+      read: ts_eq79_coords.txt
+      #write: coord_case1-ref-1.txt
+   DEVICES:
+      Antenna1 : # Group Antenna1 (As defined in the database)
+         number : 7
+      UE1-App1 : # Group UE1-App1 (As defined in the database)
+         number : 40
+      UE2-App2 : # Group UE2-App2 (As defined in the database)
+         number: 40
+      UE3-App3 : # Group UE2-App2 (As defined in the database)
+         number: 1000
+   GEOMETRY:
+      Surface:
+         rectangle:
+           length : 5000
+           height : 4000
+   VISIBILITY: # read nlos information
+      read: ts_eq79_visibility.txt
+   CLOCK : 
+      tstart : 0.0
+      tfinal : 1000.0 #ms 
+      # dt : 1.0      #ms 
+      # read : ts_eq79_segments.txt
+      #write: time_segments_lab3.txt
+   5G_PARAM:
+      CQI : 2 #cqi_table_5_2_2_1_2 ou cqi_table_5_2_2_1_3 ou cqi_table_5_2_2_1_4
+      true_processing_speed : 2000000000 #bps, True standard processing speed of the transmission channel of the UE, doesn't vary with application type
+      sub_carriers_per_resource_block : 12 # Number of sub-carriers per RB 
+      symbols_per_slot: 14 # Number of symbols per slot
+      overhead: 2 # Number of RE reserved for DMRS and other layers in the RB
+
+      
+
+      
