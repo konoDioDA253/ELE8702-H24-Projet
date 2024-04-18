@@ -84,7 +84,11 @@ ue	39	UE2-App2	971.622309930479	2258.933335807034	Controle-Drone
 
    To determine the values for parameters such as bandwidth and subcarrier spacing (SCS), refer to the following reference tables:
 
+   **For FR1 :**
+   
    ![Tableau NRB FR1](tableau_NRB_FR1.png)
+
+   **For FR2 :**
 
    ![Tableau NRB FR2](tableau_NRB_FR2.png)
 
