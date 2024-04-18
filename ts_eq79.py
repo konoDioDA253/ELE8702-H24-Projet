@@ -106,7 +106,7 @@ class UE:
         self.start_TX = []    # !! Liste des temps de debuts de transmission de paquets
         self.end_TX = []      # !! Liste des temps de fins de transmission de paquets
         self.cqi = None       # CQI de l'UE avec son antenne
-        self.Fncy = None # Efficacité de la transmission avec l'antenne (obtenue a partir du CQI)
+        self.efficiency = None # Efficacité de la transmission avec l'antenne (obtenue a partir du CQI)
         self.TX_bits = []   # !! Liste des longueurs de paquet envoyés à chaque transmission de l'application de l'UE
         self.TX_law = None   # Loi de probabilite suivi par la longueur de paquets de l'application de l'UE
         self.TX_percent = None   # Precision de la longueur du paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
@@ -126,6 +126,7 @@ class Pathloss:
         self.los = None # LoS ou non (bool)
         self.value = None   # Valeur du pathloss
         self.cqi = None     # Valeur du CQI
+        self.efficiency = None     # Valeur du efficiency
 
 
 
@@ -1060,7 +1061,7 @@ cqi_table_5_2_2_1_2 = pd.DataFrame({
     'CQI_index': range(16),
     'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
     'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
-    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
+    'efficiency': [1, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
                    2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
 })
 
@@ -1069,7 +1070,7 @@ cqi_table_updated_5_2_2_1_3 = pd.DataFrame({
     'CQI_index': range(16),
     'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
     'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
-    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
+    'efficiency': [1,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
                    5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
 })
 # structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
@@ -1082,7 +1083,7 @@ cqi_table_updated_5_2_2_1_4 = pd.DataFrame({
     'code_rate_x_1024': [
         None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
     ],
-    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
+    'efficiency': [ 1, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
         1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
 })
 
@@ -1105,11 +1106,11 @@ def estimate_cqi_from_pathloss(pathloss, cqi_table):
     # Trouver le premier seuil que le pathloss dépasse et retourner le CQI correspondant
     for i, threshold in enumerate(pathloss_thresholds):
         if pathloss > threshold:
-            return cqi_table['CQI_index'][i]
+            return cqi_table['CQI_index'][i], cqi_table['efficiency'][i]
     
     # Si le pathloss est très faible, on retourne le CQI le plus élevé
     # retourne la valeur CQI la plus elever, a la derniere valeur donc 15
-    return cqi_table['CQI_index'].iloc[-1]
+    return cqi_table['CQI_index'].iloc[-1], 1
 
 
 
@@ -1143,11 +1144,11 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
                     if (cqi_value == 2):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                        ue.cqi, ue.efficiency = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
                     elif(cqi_value == 3):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
                     elif (cqi_value == 4):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
 
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1165,11 +1166,11 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
                     if (cqi_value == 2):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
                     elif(cqi_value == 3):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
                     elif (cqi_value == 4):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
 
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1186,11 +1187,11 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
                     if (cqi_value == 2):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
                     elif(cqi_value == 3):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
                     elif (cqi_value == 4):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
+                        ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
 
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1211,11 +1212,11 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                 pathloss.value = pathloss_value
                 # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
                 if (cqi_value == 2):
-                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
+                    ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
                 elif(cqi_value == 3):
-                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
+                    ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
                 elif (cqi_value == 4):
-                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
+                    ue.cqi, ue.efficiency  = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
 
                 warning_log += warning_message
                 pathloss_list.append(pathloss)
@@ -1250,11 +1251,11 @@ def association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues):
             ue_to_antenna[ue_id] = (ant_id, pathloss_value, pathloss_los)
 
             if (cqi_value == 2):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_2 )
+                pathloss_object.cqi, pathloss_object.efficiency = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_2 )
             elif(cqi_value == 3):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_3 )
+                pathloss_object.cqi, pathloss_object.efficiency = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_3 )
             elif (cqi_value == 4):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_4 )
+                pathloss_object.cqi, pathloss_object.efficiency = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_4 )
 
 
     # Mettre a jour l'attribut assoc_ant de l'UE correspondante
@@ -1267,11 +1268,11 @@ def association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues):
 
             # TODO : Associer la valeur du CQI en plus du pathloss
             if (cqi_value == 2):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_2 )
+                pathloss_object.cqi, pathloss_object.efficiency = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_2 )
             elif(cqi_value == 3):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_3 )
+                pathloss_object.cqi, pathloss_object.efficiency = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_3 )
             elif (cqi_value == 4):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_4 )
+                pathloss_object.cqi, pathloss_object.efficiency = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_4 )
 
     # Mettre a jour l'attribut assoc_ue de l'antenne correspondante
     for ant in antennas:
@@ -1438,20 +1439,18 @@ def get_tx_bits(input_value, start_TX, TX_bits):
             return TX_bits[i]
 
 # Fonction permettant de convertir bits en resource blocks
-def convert_bits_to_resource_blocks(nbits, fichier_de_cas) :
+def convert_bits_to_resource_blocks(nbits, efficiency, fichier_de_cas) :
     nOverhead =  get_from_dict('overhead', fichier_de_cas)
     nSymbols_per_slot =  get_from_dict('symbols_per_slot', fichier_de_cas)
     nSub_carriers_per_resource_block =  get_from_dict('sub_carriers_per_resource_block', fichier_de_cas)
-    efficiency = 1
     nombre_resource_blocks = round(nbits/((nSub_carriers_per_resource_block*nSymbols_per_slot-nOverhead)*efficiency))
     return nombre_resource_blocks
 
 # Fonction permettant de convertir resource blocks en bits 
-def convert_resource_blocks_to_bits(nombre_resource_blocks, fichier_de_cas) :
+def convert_resource_blocks_to_bits(nombre_resource_blocks, efficiency, fichier_de_cas) :
     nOverhead =  get_from_dict('overhead', fichier_de_cas)
     nSymbols_per_slot =  get_from_dict('symbols_per_slot', fichier_de_cas)
     nSub_carriers_per_resource_block =  get_from_dict('sub_carriers_per_resource_block', fichier_de_cas)
-    efficiency = 1
     nbits = round(nombre_resource_blocks*((nSub_carriers_per_resource_block*nSymbols_per_slot-nOverhead)*efficiency))
     return nbits
 
@@ -1472,7 +1471,7 @@ def renvoyer_paquets_du_buffer(ues, antennas, temps_courant, pas_temps, fichier_
                         while packet_not_finished == True : 
                             # Allouer autant de resource blocks que possible au buffer durant le slot actuel
                             nbits_a_transmettre = packet.nbits
-                            nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, fichier_de_cas)
+                            nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, ue.efficiency, fichier_de_cas)
                             resource_blocks_a_allouer_a_ue = min(nombre_resource_blocks_disponible, nombre_resource_block_a_prendre)
                             if resource_blocks_a_allouer_a_ue > 0  :
                                 # Allouer a l'ue seulement si on peut se le permetrre 
@@ -1565,7 +1564,7 @@ def allocate_resource_blocks_to_ues(ues, antennas, temps_courant, pas_temps, fic
                             M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission du paquet dans le slot courant, utile pour convertir taille de paquet total en taille de paquet dans le slot de temps
                             # nbits_a_transmettre = round(M*standard_true_transmission_speed)  # Nombre de bits a transmettre (on assume transmission constante durant l'envoi du paquet)
                             nbits_a_transmettre = get_tx_bits(ue.start_TX[i], ue.start_TX, ue.TX_bits)
-                            nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, fichier_de_cas)
+                            nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, ue.efficiency, fichier_de_cas)
                             resource_blocks_a_allouer_a_ue = min(nombre_resource_blocks_disponible, nombre_resource_block_a_prendre)
                             if resource_blocks_a_allouer_a_ue > 0  :
                                 # Allouer a l'ue seulement si on peut se le permetrre 
@@ -1577,7 +1576,7 @@ def allocate_resource_blocks_to_ues(ues, antennas, temps_courant, pas_temps, fic
                                 # Pas assez de resource blocks disponibles
                                 # Rajouter le restant des resource blocks souhaités dans le buffer 
                                 nombre_resource_block_restant = nombre_resource_block_a_prendre - nombre_resource_blocks_disponible
-                                nbits_restant = convert_resource_blocks_to_bits(nombre_resource_block_restant, fichier_de_cas)
+                                nbits_restant = convert_resource_blocks_to_bits(nombre_resource_block_restant, ue.efficiency, fichier_de_cas)
                                 paquet_a_retransmettre = Packet(nbits_restant, temps_courant)
                                 ue.buffer.append(paquet_a_retransmettre)
                                 # ET Arreter l'allocation dans le slot actuel
@@ -1684,8 +1683,8 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
                     # M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
                     # R = ue.TX_rate*1000  # Débit de la transmission en bits per second
                     if ue.TX_bits[i] > 0  : # Verifie si l'UE veut transmettre, ET s'il y a assez de resource blocks qui lui sont alloues
-                        nbits_transmis = convert_resource_blocks_to_bits(ue.resource_blocks_alloues[current_slot_number], fichier_de_cas)
-                        ue.resource_blocks_alloues[current_slot_number] = max(0, ue.resource_blocks_alloues[current_slot_number] - convert_bits_to_resource_blocks(ue.TX_bits[i], fichier_de_cas))
+                        nbits_transmis = convert_resource_blocks_to_bits(ue.resource_blocks_alloues[current_slot_number], ue.efficiency, fichier_de_cas)
+                        ue.resource_blocks_alloues[current_slot_number] = max(0, ue.resource_blocks_alloues[current_slot_number] - convert_bits_to_resource_blocks(ue.TX_bits[i], ue.efficiency, fichier_de_cas))
                         #round(M*standard_true_transmission_speed)  # Nombre de bits transmis
                         ue.TX_bits[i] = max(0, ue.TX_bits[i] - nbits_transmis)
                         if ue.TX_bits[i] < 0 :
@@ -1747,7 +1746,7 @@ cqi_table_5_2_2_1_2 = pd.DataFrame({
     'CQI_index': range(16),
     'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
     'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
-    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
+    'efficiency': [1, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
                    2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
 })
 
@@ -1756,7 +1755,7 @@ cqi_table_5_2_2_1_3 = pd.DataFrame({
     'CQI_index': range(16),
     'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
     'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
-    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
+    'efficiency': [1,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
                    5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
 })
 # structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
@@ -1769,7 +1768,7 @@ cqi_table_5_2_2_1_4 = pd.DataFrame({
     'code_rate_x_1024': [
         None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
     ],
-    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
+    'efficiency': [ 1, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
         1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
 })
 
@@ -1789,10 +1788,10 @@ def estimate_cqi_from_pathloss(pathloss_value, cqi_table):
     # Trouver le premier seuil que le pathloss dépasse et retourner le CQI correspondant
     for i, threshold in enumerate(pathloss_thresholds):
         if pathloss_value > threshold:
-            return cqi_table['CQI_index'][i]  # Assuming 'CQI_index' is the correct column name in your DataFrame
+            return cqi_table['CQI_index'][i], cqi_table['efficiency'][i]  # Assuming 'CQI_index' is the correct column name in your DataFrame
 
     # If no threshold is exceeded, return the highest CQI index by default
-    return cqi_table['CQI_index'].iloc[-1]
+    return cqi_table['CQI_index'].iloc[-1], 1
 
 
 
@@ -1925,8 +1924,34 @@ def plot_equipment_positions(antennas, ues, plot_filename):
     plt.close()
 
 
+def plot_packet_success_rate(ues, filename):
+    # Initialisation des données pour le graphique
+    x = []
+    y = []
 
+    # Parcours de la liste d'UE et calcul du pourcentage d'apparition du nombre 0 dans TX_bits
+    for ue in ues:
+        zeroes = len([bit for bit in ue.TX_bits if bit == 0])
+        x.append(ue.id)
+        y.append(zeroes / len(ue.TX_bits))
 
+    # Tracage du graphique
+    plt.plot(x, y)
+    plt.title("Proportion de paquets complètements envoyés par UE")
+    plt.xlabel("ID de l'UE")
+    plt.ylabel("Proportion de paquets complètement envoyés")
+
+    # Sauvegarder le graphique dans un fichier PDF
+    pdf_filename = f"{filename}.pdf"
+    plt.savefig(pdf_filename)
+    # plt.close()
+
+    # Sauvegarder le graphique dans un fichier PNG
+    png_filename = f"{filename}.png"
+    plt.savefig(png_filename)
+    plt.savefig("disp_plot_packet_success_rate.png", format='png')
+
+    plt.close()
     
 
 
@@ -2030,10 +2055,10 @@ def plot_bits_received_per_slot(antennas, ues, fichier_de_cas, filename_prefix):
     plt.title('Traffic par slot de temps')
     plt.grid(True)
 
-    # Ajouter la durée d'un slot et le numéro de chaque slot au-dessus du graphique
-    for slot, slot_value in enumerate(slots):
-        plt.text(slot_value + slot_interval/2, slot_sum_bits_received[slot], f'{slot + 1}\n',
-                 horizontalalignment='center', verticalalignment='bottom')
+    # # Ajouter la durée d'un slot et le numéro de chaque slot au-dessus du graphique
+    # for slot, slot_value in enumerate(slots):
+    #     plt.text(slot_value + slot_interval/2, slot_sum_bits_received[slot], f'{slot + 1}\n',
+    #              horizontalalignment='center', verticalalignment='bottom')
 
     # Ajouter la durée d'un slot comme légende
     plt.legend([f'{num_slots} Slots\nDurée d\'un slot: {slot_interval} ms'])
@@ -2079,6 +2104,8 @@ def create_pdf_from_plot(input_filenames, output_pdf, antennas, ues, fichier_de_
             plot_average_traffic_ues("average_traffic_ues", ues)
         if filename == "average_traffic_antennas" :
             plot_average_traffic_antennas("average_traffic_antennas", antennas)
+        if filename == "packet_success_rate_per_id" :
+            plot_packet_success_rate(ues, "packet_success_rate_per_id")
 
 
 
@@ -2231,7 +2258,7 @@ def main(arg):
     write_assoc_ant_to_file(ues)
     write_transmission_ant_to_file(antennas, fichier_de_cas)
     write_transmission_ue_to_file(ues, antennas, fichier_de_cas)
-    input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues"]
+    input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues", "packet_success_rate_per_id"]
     create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
     # # pass
 

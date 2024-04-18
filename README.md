@@ -34,6 +34,8 @@ Please install it by going to [this website](https://www.pdflabs.com/tools/pdftk
 
 ![Traffic moyen des Antennas](disp_average_traffic_antennas.png)
 
+![Proportion Paquets Envoyés par UE](disp_plot_packet_success_rate.png)
+
 
 ## PDF of combined plots :
 
