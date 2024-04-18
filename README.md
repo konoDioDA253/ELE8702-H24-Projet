@@ -5,7 +5,7 @@ Project of ELE8702 class
 
 To quickly get started with the project, follow these steps:
 
-1. **On Linux:**
+1. **On your computer (Linux or Windows)**
    Open a terminal and execute the following commands:
 ```
 git clone https://github.com/konoDioDA253/ELE8702-H24-Projet.git
@@ -79,6 +79,14 @@ ue	39	UE2-App2	971.622309930479	2258.933335807034	Controle-Drone
    Specify your database of all possible devices (antennas and UEs description) with the `devices_db.yaml` file. This file should contain detailed descriptions of antennas and user equipment (UEs) that will be used in your simulations.
 
    Default parameters for the device database are given in the devices_db.yaml provided.
+
+   Specify your database of all possible devices (antennas and UEs description) with the `devices_db.yaml` file. This file should contain detailed descriptions of antennas and user equipment (UEs) that will be used in your simulations.
+
+   To determine the values for parameters such as bandwidth and subcarrier spacing (SCS), refer to the following reference tables:
+
+   ![Tableau NRB FR1](tableau_NRB_FR1.png)
+
+   ![Tableau NRB FR2](tableau_NRB_FR2.png)
 
 4. **Antenna Support and Visibility**:
    - The program only supports one type of antenna at a time.
