@@ -14,6 +14,7 @@ import os
 import argparse
 import subprocess
 import matplotlib.pyplot as plt
+import matplotlib.colors as mc
 import numpy as np
 from pathloss_3gpp_eq79 import *
 import pandas as pd
@@ -1923,7 +1924,7 @@ def plot_equipment_positions(antennas, ues, plot_filename):
     plt.savefig("disp_plot_disposition_equipements.png", format='png')
     plt.close()
 
-
+# Fonction permettant de voir la proportion de paquets envoyes completement
 def plot_packet_success_rate(ues, filename):
     # Initialisation des données pour le graphique
     x = []
@@ -1954,6 +1955,51 @@ def plot_packet_success_rate(ues, filename):
     plt.close()
     
 
+def plot_resource_blocks_per_ue(ues, filename):
+    # Initialisation des données pour le graphique
+    x = []
+    y = []
+    colors = []
+    app_legend = {}  # Dictionnaire pour stocker les associations app-couleur
+
+    # Parcours de la liste d'UE et calcul de la somme des resources blocks alloués par type d'application
+    for ue in ues:
+        x.append(ue.id)
+        y.append(sum(ue.resource_blocks_alloues))
+        if ue.app == 'Streaming-4K':
+            colors.append('red')
+            app_legend['Streaming-4K'] = 'Red'
+        elif ue.app == 'Controle-Drone':
+            colors.append('blue')
+            app_legend['Controle-Drone'] = 'Blue'
+        else:  # si l'UE a une application qui n'est pas Rouge ou Bleu
+            colors.append('green')
+            app_legend['Detection-Automobile'] = 'Green'
+
+    # Création du plot
+    plt.bar(x, y, color=colors)
+
+    # Ajout de la légende
+    legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=app, 
+                                   markerfacecolor=color, markersize=10) 
+                       for app, color in app_legend.items()]
+    plt.legend(handles=legend_elements, title='Applications', loc='best')
+
+    plt.xlabel("ID de l'UE")
+    plt.ylabel("Nombre de Resource Blocks alloués")
+    plt.title("Nombre de Resource Blocks alloués par UE")
+
+    # Sauvegarder le graphique dans un fichier PDF
+    pdf_filename = f"{filename}.pdf"
+    plt.savefig(pdf_filename)
+
+    # Sauvegarder le graphique dans un fichier PNG
+    png_filename = f"{filename}.png"
+    plt.savefig(png_filename)
+    # Sauvegarde en PNG
+    plt.savefig("disp_plot_resource_blocks_per_ue.png", format='png')
+
+    plt.close()
 
 # Fonction pour plot la traffic moyen pour chaque UE
 # Arguments : filename, ues= list of objects UE
@@ -2106,6 +2152,8 @@ def create_pdf_from_plot(input_filenames, output_pdf, antennas, ues, fichier_de_
             plot_average_traffic_antennas("average_traffic_antennas", antennas)
         if filename == "packet_success_rate_per_id" :
             plot_packet_success_rate(ues, "packet_success_rate_per_id")
+        if filename == "resource_block_allocation_per_ue" :
+            plot_resource_blocks_per_ue(ues, filename)
 
 
 
@@ -2258,7 +2306,7 @@ def main(arg):
     write_assoc_ant_to_file(ues)
     write_transmission_ant_to_file(antennas, fichier_de_cas)
     write_transmission_ue_to_file(ues, antennas, fichier_de_cas)
-    input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues", "packet_success_rate_per_id"]
+    input_filenames_to_write_as_pdf = ["plot_disposition_equipement", "average_traffic_per_slot", "average_traffic_antennas", "average_traffic_ues", "packet_success_rate_per_id", "resource_block_allocation_per_ue"]
     create_pdf_from_plot(input_filenames_to_write_as_pdf, pdf_graph_file_name, antennas, ues, fichier_de_cas)
     # # pass
 

@@ -36,6 +36,7 @@ Please install it by going to [this website](https://www.pdflabs.com/tools/pdftk
 
 ![Proportion Paquets Envoyés par UE](disp_plot_packet_success_rate.png)
 
+![Nombre de Resource Blocks alloués par UE](disp_plot_resource_blocks_per_ue.png)
 
 ## PDF of combined plots :
 
