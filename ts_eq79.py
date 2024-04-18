@@ -1,9 +1,8 @@
 ## Numéro d'équipe : 79
 ## Bouh Abdillahi (Matricule : 1940646)
 ## Vincent Yves Nodjom (Matricule : 1944011)
-## Equipier MATRICULE
-## Equipier MATRICULE
-## Équipe : 79
+## Abdenour Taoufella (Matricule : 2055374)
+## Mohamed Anis Mekkaoui (Matricule : 2051493)
 ## Github link : https://github.com/konoDioDA253/ELE8702-H24-Projet
 import sys
 import threading
@@ -1510,7 +1509,7 @@ def allocate_resource_blocks_to_ues(ues, antennas, temps_courant, pas_temps, fic
     temps_initial = get_from_dict('tstart',fichier_de_cas)
     temps_final = get_from_dict('tfinal',fichier_de_cas)
     current_slot_number = int((temps_courant-temps_initial)/slot_interval)  # Numero de créneau actuel basé sur la longueur de la liste de bits reçus d'un UE
-    
+
     # creer une liste des temps d'envoie croissant dans le slot de temps courant
     for ue in ues:
         for i in range(len(ue.start_TX)):
