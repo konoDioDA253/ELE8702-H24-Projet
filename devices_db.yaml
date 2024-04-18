@@ -13,8 +13,8 @@ ANTENNAS:
     height: 10
     frequency:  28 #GHz
     gain:  40
-    scs: 60 #sub-carrier spacing in kHz
-    bandwidth: 80 #antenna bandwith in MHz
+    scs: 120 #sub-carrier spacing in kHz
+    bandwidth: 200 #antenna bandwith in MHz
 #
   Antenna2:
     type: antenna
@@ -32,7 +32,7 @@ ANTENNAS:
     frequency:  28 #GHz
     gain:  40
     scs: 60 #sub-carrier spacing in kHz
-    bandwidth: 80 #antenna bandwith in MHz
+    bandwidth: 200 #antenna bandwith in MHz
 #
   Antenna4:
     type: antenna

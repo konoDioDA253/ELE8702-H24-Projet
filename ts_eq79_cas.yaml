@@ -37,11 +37,10 @@ ETUDE_DE_TRANSMISSION:
       read : ts_eq79_segments.txt
       #write: time_segments_lab3.txt
    5G_PARAM:
-      true_transmission_speed : 2000000 #bps, True standard transmission speed of the transmission channel, doesn't vary with application type
+      true_processing_speed : 2000000000 #bps, True standard processing speed of the transmission channel of the UE, doesn't vary with application type
       sub_carriers_per_resource_block : 12 # Number of sub-carriers per RB 
       symbols_per_slot: 14 # Number of symbols per slot
       overhead: 2 # Number of RE reserved for DMRS and other layers in the RB
-      CQI : 2 #cqi_table_5_2_2_1_2 ou cqi_table_5_2_2_1_3 ou cqi_table_5_2_2_1_4
 
       
 

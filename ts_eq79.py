@@ -1,8 +1,9 @@
 ## Numéro d'équipe : 79
 ## Bouh Abdillahi (Matricule : 1940646)
 ## Vincent Yves Nodjom (Matricule : 1944011)
-## Abdenour Taoufella (Matricule : 2055374)
-## Mohamed Anis Mekkaoui (Matricule : 2051493)
+## Equipier MATRICULE
+## Equipier MATRICULE
+## Équipe : 79
 ## Github link : https://github.com/konoDioDA253/ELE8702-H24-Projet
 import sys
 import threading
@@ -113,8 +114,8 @@ class UE:
         self.delay_law = None   # Loi de probabilite suivie par le temps d'arrivee inter-paquet de l'application de l'UE
         self.delay_percent = None   # Precision du temps d'arrivee inter-paquet de l'application de l'UE (seulement dans le cas d'une loi uniforme)
         self.buffer = []        # Liste contenant la quantité de bits non envoyés par manque de Resource Block disponibles du coté de l'antenne associée a chaque slot de temps dt 
-        self.R_law = None #!!! Ajouter
-
+        self.resource_blocks_alloues = [] # Quantite de resources blocks alloues a l'UE a chaque slot de temps dt
+        self.time_waited_for_resend = [] # Temps passe dans la fil d'attente, a manipuler pour en faire une moyenne
 
 # Cette classe est utilise pour repertorier tous les pathloss calculer avec les antenne et les ues utilisés
 class Pathloss:
@@ -136,11 +137,10 @@ class Scheduler:
 
 # Cette classe est utilisee pour stocker le paquet non transmis
 class Packet:
-     def __init__(self, size, id_ue, id_ant):
-        self.size = size    # Taille du paquet en bits
-        self.id_ue = id_ue   # ID de l'UE
-        self.id_ant = id_ant  # ID de l'antenne
-        self.app = None
+     def __init__(self, nbits, time_added_to_buffer):
+        self.nbits = nbits    # Taille du paquet en bits
+        self.time_added_to_buffer = time_added_to_buffer   # Temps auquel le paquet a été rajouté au buffer
+
 
 # Fonction permettant d'afficher un message d'erreur et de stopper le programme
 # Nbre de param : 2 (msg = message , code = code d'erreur)
@@ -186,39 +186,6 @@ def fill_up_the_lattice(N, lh, lv, nh, nv):
             line += 1
         y = y +deltav
     return coords
-
-# structure de CQI qui represente le tableau 5.2.2.1-2 4-bit
-cqi_table_5_2_2_1_2 = pd.DataFrame({
-    'CQI_index': range(16),
-    'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
-    'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
-    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
-                   2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
-})
-
-# structure de CQI qui represente le tableau 5.2.2.1-3 4-bit
-cqi_table_5_2_2_1_3 = pd.DataFrame({
-    'CQI_index': range(16),
-    'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
-    'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
-    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
-                   5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
-})
-# structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
-cqi_table_5_2_2_1_4 = pd.DataFrame({
-    'CQI_index': range(16),
-    'modulation': [None] + [
-        'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK',
-        '16QAM', '16QAM', '16QAM', '64QAM', '64QAM', '64QAM', '64QAM'
-    ],
-    'code_rate_x_1024': [
-        None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
-    ],
-    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
-        1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
-})
-
-
 
 # Fonction utilisee dans la generation de coordonnees des antennes
 # Nbre de param: 6 (lh = longeur horizontal, lv = longeur vertival, N = nombre total de point ,np = nbre de point, nh = nbre de point en horizontal, nv = nbre de point en vertical)
@@ -307,18 +274,28 @@ def creer_tableau(colonnes, lignes, valeurs_a_attribuer):
 # Definition des tableaux en tant que VARIABLES GLOBALES
 def definition_des_tableaux():
     # NRB tableau 
-    scs_valeurs = [15, 30, 60] #in kHz
-    bandwidth_valeurs = list(range(5, 51, 5)) + list(range(60, 101, 10)) #in MHz
+    scs_valeurs_FR1 = [15, 30, 60] #in kHz
+    bandwidth_valeurs_FR1 = list(range(5, 51, 5)) + list(range(60, 101, 10)) #in MHz
 
-    valeurs_a_attribuer = [
+    valeurs_a_attribuer_FR1 = [
     (15, 5, 25), (15, 10, 52), (15, 15, 79), (15, 20, 106), (15, 25, 133), (15, 30, 160), (15, 35, 188), (15, 40, 216), (15, 45, 242), (15, 50, 270), (15, 60, None), (15, 70, None), (15, 80, None), (15, 90, None), (15, 100, None), 
     (30, 5, 11), (30, 10, 24), (30, 15, 38), (30, 20, 51), (30, 25, 65), (30, 30, 78), (30, 35, 92), (30, 40, 106), (30, 45, 119), (30, 50, 133), (30, 60, 162), (30, 70, 189), (30, 80, 217), (30, 90, 245), (30, 100, 273), 
     (60, 5, None), (60, 10, 11), (60, 15, 18), (60, 20, 24), (60, 25, 31), (60, 30,38), (60, 35, 44), (60, 40, 51), (60, 45, 58), (60, 50, 65), (60, 60, 79), (60, 70, 93), (60, 80, 107), (60, 90, 121), (60, 100, 135) 
     ]
-    tableau_NRB = creer_tableau(scs_valeurs, bandwidth_valeurs, valeurs_a_attribuer)
+    tableau_NRB_FR1 = creer_tableau(scs_valeurs_FR1, bandwidth_valeurs_FR1, valeurs_a_attribuer_FR1)
 
-    return tableau_NRB
-tableau_NRB = definition_des_tableaux()
+
+    scs_valeurs_FR2 = [60, 120] #in kHz
+    bandwidth_valeurs_FR2 = [50, 100, 200, 400] #in MHz
+
+    valeurs_a_attribuer_FR2 = [
+    (60, 50, 66), (60, 100, 132), (60, 200, 264), (60, 400, None),
+    (120, 50, 32), (120, 100, 66), (120, 200, 132), (120, 400, 264)
+    ]
+    tableau_NRB_FR2 = creer_tableau(scs_valeurs_FR2, bandwidth_valeurs_FR2, valeurs_a_attribuer_FR2)
+
+    return tableau_NRB_FR1, tableau_NRB_FR2
+tableau_NRB_FR1, tableau_NRB_FR2 = definition_des_tableaux()
 
 # Fonction permettant de lire un fichier YAML 
 # Argument : fname (nom du fichier YAML a lire)
@@ -475,11 +452,11 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
     start_TX = []  # Initialiser la liste des temps de début de transmission
     end_TX = []    # Initialiser la liste des temps de fin de transmission
     packet_length_list = [] # Initialiser la liste des longueurs de paquets
-    standard_true_transmission_speed = get_from_dict('true_transmission_speed', fichier_de_cas) # True standard transmission speed of the transmission channel, doesn't vary with application type
+    standard_true_processing_speed = get_from_dict('true_processing_speed', fichier_de_cas) # True standard processing speed of the transmission channel of the UE, doesn't vary with application type
 
     while current_time < tfinal:
-        # # TODO Tant que l'intervalle de temps (current_time, current_time + true_transmission_time) donne des valeurs plus petites que l'intervalle (start_TX[i], end_TX[i]) pour tout i, regénérer les valeurs de temps  
-        # while verify_transmission_interval_integrity(start_TX, end_TX, current_time, true_transmission_time) == False :
+        # # TODO Tant que l'intervalle de temps (current_time, current_time + true_processing_time) donne des valeurs plus petites que l'intervalle (start_TX[i], end_TX[i]) pour tout i, regénérer les valeurs de temps  
+        # while verify_transmission_interval_integrity(start_TX, end_TX, current_time, true_processing_time) == False :
         #     # 
         # Générer le temps d'inter-arrivée basé sur la loi de distribution spécifiée
 
@@ -499,28 +476,28 @@ def generate_transmission_times_and_packet_length(ue, fichier_de_cas, fichier_de
             packet_length = np.random.uniform(min_length, max_length)  # Générer la longueur du paquet selon une distribution uniforme
             packet_length_list.append(packet_length)
 
-        # Estimer le temps de transmission basé sur la longueur du paquet et la vitesse de transmission 
-        true_transmission_time = packet_length / standard_true_transmission_speed # 
+        # Estimer le temps de traitement basé sur la longueur du paquet et la vitesse de traitement 
+        true_processing_time = packet_length / standard_true_processing_speed # 
         
 
-        # TODO verifier si next_packet_arrival_time (le cutoff) est plus grand ou plus petit que transmission_time, mettre dans le buffer les bits non-envoyés dans ce dernier cas.
-        start_of_transmission = current_time
-        if next_packet_arrival_time < true_transmission_time :
+        # TODO verifier si next_packet_arrival_time (le cutoff) est plus grand ou plus petit que true_processing_time, mettre dans le buffer les bits non-envoyés dans ce dernier cas.
+        start_of_processing = current_time
+        if next_packet_arrival_time < true_processing_time :
             # Calculer le nombre de bits non-envoyés
-            bits_not_sent = (true_transmission_time-next_packet_arrival_time)*standard_true_transmission_speed
+            bits_not_sent = (true_processing_time-next_packet_arrival_time)*standard_true_processing_speed
             ue.buffer.append(round(bits_not_sent))
-            end_of_transmission =  current_time + next_packet_arrival_time
+            end_of_processing =  current_time + next_packet_arrival_time
         else:
-            end_of_transmission =  current_time + true_transmission_time
+            end_of_processing =  current_time + true_processing_time
 
 
 
-        # Calculer le temps de début de la transmission et le rajouter a start_TX
-        start_TX.append(start_of_transmission)
-        # Calculer le temps de fin de la transmission et le rajouter a end_TX
-        end_TX.append(end_of_transmission)
+        # Calculer le temps de début du traitement et le rajouter a start_TX
+        start_TX.append(start_of_processing)
+        # Calculer le temps de fin de traitement et le rajouter a end_TX
+        end_TX.append(end_of_processing)
         
-        if end_of_transmission > tfinal :
+        if end_of_processing > tfinal :
             packet_length_list.pop()
             start_TX.pop()
             end_TX.pop()
@@ -661,8 +638,14 @@ def lire_coordonnees_antennes(filename, fichier_de_devices):
                 antenna.gain = get_from_dict('gain', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
                 antenna.sub_carrier_spacing = get_from_dict('scs', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
                 antenna.bandwidth = get_from_dict('bandwidth', get_from_dict_3GPP(antenna.group, get_from_dict_3GPP(next(iter(fichier_de_devices)), fichier_de_devices)))
-                antenna.nombre_resource_blocks_max = tableau_NRB[antenna.sub_carrier_spacing][antenna.bandwidth]
-                
+
+                if 0.41 <= antenna.frequency <= 7.125:
+                    antenna.nombre_resource_blocks_max = tableau_NRB_FR1[antenna.sub_carrier_spacing][antenna.bandwidth] # FR1
+                elif 24.25 <= antenna.frequency <= 52.6:
+                    antenna.nombre_resource_blocks_max = tableau_NRB_FR2[antenna.sub_carrier_spacing][antenna.bandwidth] # FR2
+                else :
+                    ERROR(f"Veuiller corriger la fréquence '{antenna.frequency}'GHz de votre antenne '{antenna.type}' dans le fichier device_db.yaml, elle n'est pas en FR1 et pas en FR2.")
+
                 liste_antennes_avec_coordonnees.append(antenna)
 
     return liste_antennes_avec_coordonnees
@@ -1103,7 +1086,6 @@ def estimate_cqi_from_pathloss(pathloss, cqi_table):
 # Nbre param: 4 (fichier_de_cas, fichier_de_device, antennas = liste des antenne, ues =liste des ues)
 # Valeur de retour: pathloss_list = liste des pathloss calculer, warning_log = message d'avertissement 
 def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
-    cqi_value = get_from_dict('CQI', fichier_de_cas)
     pathloss_list =[]
     warning_log = ""
     model = get_from_dict('model', fichier_de_cas)
@@ -1127,12 +1109,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                         pathloss_value, warning_message = rma_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-                    if (cqi_value == 2):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
-                    elif(cqi_value == 3):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
-                    elif (cqi_value == 4):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
 
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1149,12 +1125,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                         pathloss_value, warning_message = uma_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-                    if (cqi_value == 2):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
-                    elif(cqi_value == 3):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
-                    elif (cqi_value == 4):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
                     
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1170,12 +1140,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                         pathloss_value, warning_message = umi_nlos(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                     pathloss.value = pathloss_value
                     # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-                    if (cqi_value == 2):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
-                    elif(cqi_value == 3):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
-                    elif (cqi_value == 4):
-                        ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
                     
                     warning_log += warning_message
                     pathloss_list.append(pathloss)
@@ -1195,13 +1159,6 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
                 pathloss_value, warning_message = okumura(fichier_de_cas, fichier_de_device, antenna.id, ue.id, antennas, ues)
                 pathloss.value = pathloss_value
                 # TODO : Attribuer un CQI au combo UE Antenne (creer une fonction)
-                if (cqi_value == 2):
-                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_2 )
-                elif(cqi_value == 3):
-                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_3 )
-                elif (cqi_value == 4):
-                    ue.cqi = estimate_cqi_from_pathloss(pathloss.value, cqi_table_5_2_2_1_4 )
-
 
                 warning_log += warning_message
                 pathloss_list.append(pathloss)
@@ -1218,10 +1175,9 @@ def pathloss_attribution(fichier_de_cas, fichier_de_device, antennas, ues):
 # Fonction permettant d'associer les UEs du terrain a leur antenne ayant le pathloss minimal
 # Nbre de param: 3 (pathlosses = liste des pathloss, antennas = liste des antenne, ues = liste des ues)
 # Valeur de retour: antennas = liste des antennes associer, ues = liste des ues associer
-def association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues):
+def association_ue_antenne(pathlosses, antennas, ues):
     # Initialiser un dictionnaire pour stocker l'antenne avec le pathloss le plus petit pour chaque UE
     ue_to_antenna = {}
-    cqi_value = get_from_dict('CQI', fichier_de_cas)
 
     for pathloss_object in pathlosses:
         ue_id = pathloss_object.id_ue
@@ -1234,28 +1190,15 @@ def association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues):
         # TODO : Aller chercher la valeur du CQI en plus du pathloss
         if ue_id not in ue_to_antenna or pathloss_value < ue_to_antenna[ue_id][1]:
             ue_to_antenna[ue_id] = (ant_id, pathloss_value, pathloss_los)
-            if (cqi_value == 2):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_2 )
-            elif(cqi_value == 3):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_3 )
-            elif (cqi_value == 4):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(pathloss_value, cqi_table_5_2_2_1_4 )
-
 
     # Mettre a jour l'attribut assoc_ant de l'UE correspondante
-    for ue_id, (ant_id, pathloss_value, pathloss_los) in ue_to_antenna.items():
+    for ue_id, (ant_id, _, pathloss_los) in ue_to_antenna.items():
         ue = next((ue for ue in ues if ue.id == ue_id), None)
         if ue:
             ue.assoc_ant = ant_id
             ue.los = pathloss_los
-            ue.pathloss = pathloss_value  # Store the best pathloss value in the UE object
             # TODO : Associer la valeur du CQI en plus du pathloss
-            if (cqi_value == 2):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_2 )
-            elif(cqi_value == 3):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_3 )
-            elif (cqi_value == 4):
-                pathloss_object.cqi = estimate_cqi_from_pathloss(ue.pathloss, cqi_table_5_2_2_1_4 )
+        
 
     # Mettre a jour l'attribut assoc_ue de l'antenne correspondante
     for ant in antennas:
@@ -1415,6 +1358,215 @@ def get_slot_duration(antennas) :
         ERROR("Espacement entre sous-porteuse incorrect dans le fichier de devices database, veuillez mettre l'une de ces valeurs pour les antennes : 15, 30, 60, 120")
     return pas_temps
 
+# Fonction permettant de retourner le nombre de bits a transmettre au temps indiqué en input
+def get_tx_bits(input_value, start_TX, TX_bits):
+    for i in range(len(start_TX)):
+        if start_TX[i] == input_value:
+            return TX_bits[i]
+
+# Fonction permettant de convertir bits en resource blocks
+def convert_bits_to_resource_blocks(nbits, fichier_de_cas) :
+    nOverhead =  get_from_dict('overhead', fichier_de_cas)
+    nSymbols_per_slot =  get_from_dict('symbols_per_slot', fichier_de_cas)
+    nSub_carriers_per_resource_block =  get_from_dict('sub_carriers_per_resource_block', fichier_de_cas)
+    efficiency = 1
+    nombre_resource_blocks = round(nbits/((nSub_carriers_per_resource_block*nSymbols_per_slot-nOverhead)*efficiency))
+    return nombre_resource_blocks
+
+# Fonction permettant de convertir resource blocks en bits 
+def convert_resource_blocks_to_bits(nombre_resource_blocks, fichier_de_cas) :
+    nOverhead =  get_from_dict('overhead', fichier_de_cas)
+    nSymbols_per_slot =  get_from_dict('symbols_per_slot', fichier_de_cas)
+    nSub_carriers_per_resource_block =  get_from_dict('sub_carriers_per_resource_block', fichier_de_cas)
+    efficiency = 1
+    nbits = round(nombre_resource_blocks*((nSub_carriers_per_resource_block*nSymbols_per_slot-nOverhead)*efficiency))
+    return nbits
+
+# Fonction permettant de scheduler le renvoi des paquets dans le buffer des UEs
+def renvoyer_paquets_du_buffer(ues, antennas, temps_courant, pas_temps, fichier_de_cas, current_slot_number) :
+    for ue in ues : 
+        if ue.buffer != [] :
+            antenne_associee_id = ue.assoc_ant
+            for antenne in antennas:
+                if antenne.id == antenne_associee_id: 
+                    # Get le Nombre de Resource blocks max
+
+                    nombre_resource_blocks_disponible = antenne.nombre_resource_blocks_disponibles[current_slot_number]
+
+                    no_more_resource_blocks = False
+                    for packet in ue.buffer : 
+                        packet_not_finished = True
+                        while packet_not_finished == True : 
+                            # Allouer autant de resource blocks que possible au buffer durant le slot actuel
+                            nbits_a_transmettre = packet.nbits
+                            nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, fichier_de_cas)
+                            resource_blocks_a_allouer_a_ue = min(nombre_resource_blocks_disponible, nombre_resource_block_a_prendre)
+                            if resource_blocks_a_allouer_a_ue > 0  :
+                                # Allouer a l'ue seulement si on peut se le permetrre 
+                                ue.resource_blocks_alloues[current_slot_number] += resource_blocks_a_allouer_a_ue
+                            # nombre_resource_blocks_disponible -= nombre_resource_block_a_prendre
+                            antenne.nombre_resource_blocks_disponibles[current_slot_number] = max(0, nombre_resource_blocks_disponible - nombre_resource_block_a_prendre)
+                            
+                            # Arreter l'envoi de paquets de la queue dans le slot actuel si nous avons fini le stock de resource blocks
+                            if antenne.nombre_resource_blocks_disponibles[current_slot_number] - nombre_resource_block_a_prendre < 0 :
+                                # Sortir de l'envoi du paquet actuel
+                                packet_not_finished = False    # Ne plus transmettre le paquet en cours du buffer
+                                no_more_resource_blocks = True
+
+                            # Verifier si le paquet a encore des bits a envoyer
+                            if nombre_resource_block_a_prendre <= 0 :
+                                # Le paquet a finit d'etre envoye, compter le temps passe dans le buffer
+                                ue.time_waited_for_resend.append(temps_courant - packet.time_added_to_buffer) 
+                                packet_not_finished = False
+
+                        # Plus de resource_blocks, on arrete donc l'envoi
+                        if no_more_resource_blocks == True : 
+                            break
+
+    return ues, antennas
+# Fonction permettant d'allouer les Resource Blocks aux UEs qui veulent tranmettre dans le slot actuel par ordre de premier arrivé permier servi
+def allocate_resource_blocks_to_ues(ues, antennas, temps_courant, pas_temps, fichier_de_cas) :
+
+    standard_true_processing_speed = get_from_dict('true_processing_speed', fichier_de_cas) # inutile
+
+    liste_ue_temps_envoi = []
+    liste_ues_ordonnee = []
+
+    slot_interval_ms = get_slot_duration(antennas) # pas de temps dt
+    slot_interval = slot_interval_ms/1000 # pas de temps dt
+    temps_initial = get_from_dict('tstart',fichier_de_cas)
+    temps_final = get_from_dict('tfinal',fichier_de_cas)
+    current_slot_number = int((temps_courant-temps_initial)/slot_interval)  # Numero de créneau actuel basé sur la longueur de la liste de bits reçus d'un UE
+    if current_slot_number == 45 :
+        print("HEEERE")
+    # creer une liste des temps d'envoie croissant dans le slot de temps courant
+    for ue in ues:
+        for i in range(len(ue.start_TX)):
+            if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
+                # creer la liste ordonnee des temps d'envoi dans le slot courant liste_ue_temps_envoi
+                liste_ue_temps_envoi.append(ue.start_TX[i])
+    liste_ue_temps_envoi.sort(key=lambda x: x)
+
+    # creer une liste indiquant quelle ue commence a envoyer en premier dans le slot courant (ordre croissant) 
+    for ue in ues:
+        for i in range(len(ue.start_TX)):
+            if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
+            # L'ue va transmettre dans le slot de temps actuel
+            # rajouter l'UE dans la nouvelle liste si 
+                temps_envoi_ue_courant = ue.start_TX[i]
+                for temps_envoi in liste_ue_temps_envoi :
+                    if temps_envoi > temps_envoi_ue_courant :
+                        # l'ue courante est celle qui envoi en premier dans le slot actuel
+                        # mettre l'ue actuel devant l'element correspondant a temps_envoi dans liste_ue_temps_envoi (pas necessairement 0)
+
+                        # get l'indice de l'ue qui correspond au temps_envoi dans  la liste_ues_ordonnee
+                        indice_ue_temps_envoi = liste_ue_temps_envoi.index(temps_envoi_ue_courant)
+                        # mettre l'ue courante devant cette ue dans la liste_ues_ordonnee
+                        liste_ues_ordonnee.insert(indice_ue_temps_envoi, ue)                     
+                    if temps_envoi < temps_envoi_ue_courant :
+                        # ajouter l'ue a la fin de la liste
+                        liste_ues_ordonnee.append(ue)
+
+    time_differences = [((start_TXi - temps_courant) for start_TXi in ue.start_TX) for ue in ues]
+    no_more_resource_blocks = False
+    if liste_ues_ordonnee == [] :
+        # Si Aucune UE n'envoie d'information actuellement
+        # Scheduler l'envoi des paquets dans le buffer 
+        ues, antennas = renvoyer_paquets_du_buffer(ues, antennas, temps_courant, pas_temps, fichier_de_cas, current_slot_number)
+    else : 
+        for ue in liste_ues_ordonnee : # changer ues pour la liste d'ues classee par ordre croissant de temps d'envoi dans le slot courant
+            antenne_associee_id = ue.assoc_ant
+            for antenne in antennas:
+                if antenne.id == antenne_associee_id: 
+                    # Get le Nombre de Resource blocks max
+
+                    nombre_resource_blocks_disponible = antenne.nombre_resource_blocks_disponibles[current_slot_number]
+                    
+
+                    # Identifier si nous devons envoyer des bits dans le slot de temps actuel avec start_TX[i] et end_TX[i]
+                    for i in range(len(ue.start_TX)):
+                        if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
+                            # Nous devons effectivement envoyer des bits dans le slot de temps actuel
+                            no_more_resource_blocks = False
+                            # Reserver le nombre de Resource Blocks necessaires
+                            M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission du paquet dans le slot courant, utile pour convertir taille de paquet total en taille de paquet dans le slot de temps
+                            # nbits_a_transmettre = round(M*standard_true_transmission_speed)  # Nombre de bits a transmettre (on assume transmission constante durant l'envoi du paquet)
+                            nbits_a_transmettre = get_tx_bits(ue.start_TX[i], ue.start_TX, ue.TX_bits)
+                            nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, fichier_de_cas)
+                            resource_blocks_a_allouer_a_ue = min(nombre_resource_blocks_disponible, nombre_resource_block_a_prendre)
+                            if resource_blocks_a_allouer_a_ue > 0  :
+                                # Allouer a l'ue seulement si on peut se le permetrre 
+                                ue.resource_blocks_alloues[current_slot_number] += resource_blocks_a_allouer_a_ue                     
+                            # nombre_resource_blocks_disponible -= nombre_resource_block_a_prendre # faire formule pour convertir nbits a transmettre en resource blocks
+                            antenne.nombre_resource_blocks_disponibles[current_slot_number] = max(0, nombre_resource_blocks_disponible - nombre_resource_block_a_prendre)
+
+                            if nombre_resource_blocks_disponible  - nombre_resource_block_a_prendre < 0 :
+                                # Pas assez de resource blocks disponibles
+                                # Rajouter le restant des resource blocks souhaités dans le buffer 
+                                nombre_resource_block_restant = nombre_resource_block_a_prendre - nombre_resource_blocks_disponible
+                                nbits_restant = convert_resource_blocks_to_bits(nombre_resource_block_restant, fichier_de_cas)
+                                paquet_a_retransmettre = Packet(nbits_restant, temps_courant)
+                                ue.buffer.append(paquet_a_retransmettre)
+                                # ET Arreter l'allocation dans le slot actuel
+                                no_more_resource_blocks = True
+
+                        # Donner les resources blocks aux UEs avec logique premier arrive premier servi (car c'est ce que les systemes deployes seront le plus suceptibles de realiser, car cela demande l'implementation physique la plus simple)       
+                        # Identifier le nombre de bits a envoyer avec le TX_bits
+                        # else : 
+                        #     # Aucune UE ne veut transmettre de nouveau paquet dans le slot actuel
+                        #     # Allouer des resources blocks au buffer (Regle : transmission de buffer est TOUJOURS moins prioritaire que transmission paquet original UE)
+                        #     nombre_resource_blocks_disponible = antenne.nombre_resource_blocks_disponibles[current_slot_number] 
+                        #     no_more_resource_blocks = False
+                        #     for packet in ue.buffer : 
+                        #         packet_not_finished = True
+                        #         while packet_not_finished == True : 
+                        #             # Allouer autant de resource blocks que possible au buffer durant le slot actuel
+                        #             nbits_a_transmettre = packet.nbits
+                        #             nombre_resource_block_a_prendre = convert_bits_to_resource_blocks(nbits_a_transmettre, fichier_de_cas)
+                        #             resource_blocks_a_allouer_a_ue = min(nombre_resource_blocks_disponible, nombre_resource_block_a_prendre)
+                        #             if resource_blocks_a_allouer_a_ue > 0  :
+                        #                 # Allouer a l'ue seulement si on peut se le permetrre 
+                        #                 ue.resource_blocks_alloues[current_slot_number] += resource_blocks_a_allouer_a_ue
+                        #             # nombre_resource_blocks_disponible -= nombre_resource_block_a_prendre
+                        #             antenne.nombre_resource_blocks_disponibles[current_slot_number] = max(0, nombre_resource_blocks_disponible - nombre_resource_block_a_prendre)
+                                    
+                        #             # Arreter l'envoi de paquets de la queue dans le slot actuel si nous avons fini le stock de resource blocks
+                        #             if antenne.nombre_resource_blocks_disponibles[current_slot_number] - nombre_resource_block_a_prendre < 0 :
+                        #                 # Sortir de l'envoi du paquet actuel
+                        #                 packet_not_finished = False    # Ne plus transmettre le paquet en cours du buffer
+                        #                 no_more_resource_blocks = True
+
+                        #             # Verifier si le paquet a encore des bits a envoyer
+                        #             if nombre_resource_block_a_prendre <= 0 :
+                        #                 # Le paquet a finit d'etre envoye, compter le temps passe dans le buffer
+                        #                 ue.time_waited_for_resend.append(temps_courant - packet.time_added_to_buffer) 
+                        #                 packet_not_finished = False
+
+                        #         # Plus de resource_blocks, on arrete donc l'envoi
+                        #         if no_more_resource_blocks == True : 
+                        #             break
+                        # Plus de resource_blocks, on arrete donc l'envoi
+                        if no_more_resource_blocks == True : 
+                            break
+
+    return ues, antennas
+
+# Fonction permettant d'initialiser les listes de resource blocks disponibles cote antenne et resource blocks alloues par slot cote ue
+def initialize_nombre_resource_block_disponible_antenne_and_resource_blocks_alloues_ue(antennas, ues, fichier_de_cas) : 
+    slot_interval = get_slot_duration(antennas) # pas de temps dt
+    temps_initial = get_from_dict('tstart',fichier_de_cas)
+    temps_final = get_from_dict('tfinal',fichier_de_cas)
+    num_slots = int((temps_final-temps_initial)/slot_interval)  # Nombre de créneaux basé sur la longueur de la liste de bits reçus d'un UE
+
+    for antenna in antennas :
+        for i in range(num_slots) :
+            antenna.nombre_resource_blocks_disponibles.append(antenna.nombre_resource_blocks_max) # initialisation au nombre de RB max
+    
+    for ue in ues :
+        for i in range(num_slots) :
+            ue.resource_blocks_alloues.append(0) # initialisation a 0 RB
+    return antennas, ues
+
 # Fonction permettant de faire la simulation de la transmission a chaque dt et retournant une liste d'objets Antenna et une liste d'objets UE avec les attributs nbits et live_ues mis a jour
 # Arguments : fichier_de_cas, fichier_de_device, antennas (liste d'objets Antenna), ues (liste d'objets UE)
 # Valeur de retour : antennas = liste d'objets Antenna, ues = liste d'objets UE
@@ -1432,24 +1584,37 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
     # Lire le fichier de segments et en extraire les informations de transmission des UEs
     # sanity_check_transmission_profile(fichier_de_cas)
     # ues = lire_fichier_segments(segment_filename, ues)
-
+    
+    # Initialiser la lsite de resources blocks disponible par slot de temps de toutes les antennes à nombre_resource_block_max
+    antennas, ues = initialize_nombre_resource_block_disponible_antenne_and_resource_blocks_alloues_ue(antennas, ues, fichier_de_cas)
 
     # Boucle de simulation
     temps_courant = temps_initial
     while temps_courant < 0.99*(temps_final-(temps_final-pas_temps*int((temps_final - temps_initial) / pas_temps))) + temps_initial : # tant que le temps courant est inferieur au temps de fin de simulation
         # Logique de simulation de transmission de paquets entre antennes et UEs
+
+        # Numero de créneau actuel basé sur la longueur de la liste de bits reçus d'un UE
+        current_slot_number = int((temps_courant-temps_initial)/pas_temps)  
+
+        # TODO Faire l'allocation des ressources a chaque slot de temps 
+        ues, antennas =  allocate_resource_blocks_to_ues(ues, antennas, temps_courant, pas_temps, fichier_de_cas) 
+
+        # Commencer la transmission
         # Pour chaque UE
         for ue in ues:
             # Verifier si l'UE a des transmissions prevues pendant ce pas de temps
             # if ue.id == 2 :
             #     print("EH!")
+
             for i in range(len(ue.start_TX)):
                 if temps_courant <= ue.start_TX[i] <= temps_courant + pas_temps or ue.start_TX[i]<= temps_courant <= ue.end_TX[i]:
-                    M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
+                    # M = min(temps_courant + pas_temps, ue.end_TX[i]) - max(temps_courant, ue.start_TX[i])  # Durée de la transmission
                     # R = ue.TX_rate*1000  # Débit de la transmission en bits per second
-                    if ue.TX_bits[i] > 0:
-                        nbits_transmis = round(M*standard_true_transmission_speed)  # Nombre de bits transmis
-                        ue.TX_bits[i] -= nbits_transmis
+                    if ue.TX_bits[i] > 0  : # Verifie si l'UE veut transmettre, ET s'il y a assez de resource blocks qui lui sont alloues
+                        nbits_transmis = convert_resource_blocks_to_bits(ue.resource_blocks_alloues[current_slot_number], fichier_de_cas)
+                        ue.resource_blocks_alloues[current_slot_number] = max(0, ue.resource_blocks_alloues[current_slot_number] - convert_bits_to_resource_blocks(ue.TX_bits[i], fichier_de_cas))
+                        #round(M*standard_true_transmission_speed)  # Nombre de bits transmis
+                        ue.TX_bits[i] = max(0, ue.TX_bits[i] - nbits_transmis)
                         if ue.TX_bits[i] < 0 :
                             ue.TX_bits[i] = 0
                     else :
@@ -1465,7 +1630,7 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
                         # Mettre à jour l'attribut nbits de l'antenne si celui-ci est vide
                         while len(ue.nbits) < int((temps_final - temps_initial) / pas_temps) :
                             ue.nbits.append(0)
-                    ue.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis 
+                    ue.nbits[int(round(temps_courant / pas_temps)) - int(round(temps_initial / pas_temps))] += nbits_transmis # Ces bits transmis sont calcules avec l'allocation de RB
                     
                     # RECEPTION ANTENNE
                     # Mettre à jour les donnees de l'antenne associee
@@ -1502,62 +1667,6 @@ def simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ue
 
     
     return antennas, ues
-
-
-
-# structure de CQI qui represente le tableau 5.2.2.1-2 4-bit
-cqi_table_5_2_2_1_2 = pd.DataFrame({
-    'CQI_index': range(16),
-    'modulation': [None] + ['QPSK']*6 + ['16QAM']*3 + ['64QAM']*6,
-    'code_rate_x_1024': [None, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772, 873, 948],
-    'efficiency': [None, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758, 1.4766, 1.9141, 2.4063, 
-                   2.7305, 3.3223, 3.9023, 4.5234, 5.1152, 5.5547]
-})
-
-# structure de CQI qui represente le tableau 5.2.2.1-3 4-bit
-cqi_table_5_2_2_1_3 = pd.DataFrame({
-    'CQI_index': range(16),
-    'modulation': [None] + ['QPSK'] * 3 + ['16QAM'] * 3 + ['64QAM'] * 5 + ['256QAM'] * 4,
-    'code_rate_x_1024': [None,78, 193, 449, 378, 490, 616, 466, 567, 666, 772, 873, 711, 797, 885, 948],
-    'efficiency': [None,0.1523, 0.3770, 0.8770, 1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234, 
-                   5.1152, 5.5547, 6.2266, 6.9141, 7.4063]
-})
-# structure de CQI qui represente le tableau 5.2.2.1-4 4-bit
-cqi_table_5_2_2_1_4 = pd.DataFrame({
-    'CQI_index': range(16),
-    'modulation': [None] + [
-        'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK', 'QPSK',
-        '16QAM', '16QAM', '16QAM', '64QAM', '64QAM', '64QAM', '64QAM'
-    ],
-    'code_rate_x_1024': [
-        None, 30, 50, 78, 120, 193, 308, 449, 602, 378, 490, 616, 466, 567, 666, 772
-    ],
-    'efficiency': [ None, 0.0586, 0.0977, 0.1523, 0.2344, 0.3770, 0.6016, 0.8770, 1.1758,
-        1.4766, 1.9141, 2.4063, 2.7305, 3.3223, 3.9023, 4.5234]
-})
-
-# Fonction qui fait le mapping entre toute combinaison de ue et antenna (Selon le tableau 5.2.2.1 4-bit)
-# prend en parametre le pathloss (en dB) et une structure de CQI quelconque.
-# return une valeur de CQI associe au pathloss
-
-def estimate_cqi_from_pathloss(pathloss_value, cqi_table):
-    """
-    Estime le CQI basé sur le pathloss (en dB) et une table de mapping CQI.
-    :param pathloss_value: Le pathloss en dB comme un double (float).
-    :param cqi_table: DataFrame contenant le mapping CQI.
-    :return: Index CQI estimé.
-    """
-    pathloss_thresholds = [140.00, 130.00, 120.00, 110.00, 100.00, 90.00, 80.00, 70.00, 60.00, 50.00, 40.00, 30, 20, 10, 0]
-    
-    # Trouver le premier seuil que le pathloss dépasse et retourner le CQI correspondant
-    for i, threshold in enumerate(pathloss_thresholds):
-        if pathloss_value > threshold:
-            return cqi_table['CQI_index'][i]  # Assuming 'CQI_index' is the correct column name in your DataFrame
-
-    # If no threshold is exceeded, return the highest CQI index by default
-    return cqi_table['CQI_index'].iloc[-1]
-
-
 
 
 # Fonction ts requise, retourne une liste d'antenne et une liste d'UE
@@ -1979,7 +2088,7 @@ def main(arg):
 
     # Calcul pathloss et Association
     pathlosses, warning_log = pathloss_attribution(fichier_de_cas,fichier_de_device,antennas,ues)
-    antennas, ues = association_ue_antenne(fichier_de_cas,pathlosses, antennas, ues)
+    antennas, ues = association_ue_antenne(pathlosses, antennas, ues)
 
     # Transmission des paquets
     antennas, ues = simulate_packet_transmission(fichier_de_cas, fichier_de_device, antennas, ues)
