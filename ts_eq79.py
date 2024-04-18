@@ -1510,8 +1510,7 @@ def allocate_resource_blocks_to_ues(ues, antennas, temps_courant, pas_temps, fic
     temps_initial = get_from_dict('tstart',fichier_de_cas)
     temps_final = get_from_dict('tfinal',fichier_de_cas)
     current_slot_number = int((temps_courant-temps_initial)/slot_interval)  # Numero de créneau actuel basé sur la longueur de la liste de bits reçus d'un UE
-    if current_slot_number == 45 :
-        print("HEEERE")
+    
     # creer une liste des temps d'envoie croissant dans le slot de temps courant
     for ue in ues:
         for i in range(len(ue.start_TX)):
